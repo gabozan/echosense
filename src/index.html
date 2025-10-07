@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototipo de Gráficos y Heatmap</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <p class="giant">EchoSense</p>
+    <div class="container">
+        
+        <!-- Gráfico de Ventas por Mes -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <span>Gráfico de Ventas por Mes</span>
+            </div>
+            <div class="chart" id="chart-placeholder">
+                <div class="chart-legend">Ventas (en miles)</div>
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 70%; background-color: #007bff;"></div>
+                    <div class="chart-bar" style="height: 60%; background-color: #28a745;"></div>
+                    <div class="chart-bar" style="height: 80%; background-color: #ffc107;"></div>
+                    <div class="chart-bar" style="height: 50%; background-color: #dc3545;"></div>
+                    <div class="chart-bar" style="height: 90%; background-color: #17a2b8;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de Usuarios Activos -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <span>Gráfico de Usuarios Activos</span>
+            </div>
+            <div class="chart" id="chart-placeholder">
+                <div class="chart-legend">Usuarios Activos</div>
+                <div class="chart-bar-container">
+                    <div class="chart-bar" style="height: 50%; background-color: #17a2b8;"></div>
+                    <div class="chart-bar" style="height: 30%; background-color: #ffc107;"></div>
+                    <div class="chart-bar" style="height: 60%; background-color: #28a745;"></div>
+                    <div class="chart-bar" style="height: 40%; background-color: #007bff;"></div>
+                    <div class="chart-bar" style="height: 80%; background-color: #dc3545;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mapa de Calor (Heatmap) -->
+    <div class="map-container">
+        <div class="map-header">
+            <span>Mapa de Calor (Heatmap)</span>
+        </div>
+        <div class="heatmap" id="heatmap-placeholder">
+            <div class="heatmap-intensity">
+                <span>Alta Intensidad</span>
+            </div>
+            <div class="heatmap-gradient"></div>
+            <div class="heatmap-intensity">
+                <span>Baja Intensidad</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
