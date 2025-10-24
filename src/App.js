@@ -137,6 +137,42 @@ function TimelineChart({ data, deviceName, devices, onSelectDevice, selectedRang
     { value: '24h', label: '24 Horas', icon: '📅' }
   ];
 
+  // Format time based on range
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    
+    // If it's already in HH:MM format, use it directly
+    if (timeStr.includes(':')) {
+      return timeStr;
+    }
+    
+    // If it's a full ISO string, extract time
+    try {
+      const date = new Date(timeStr);
+      return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return timeStr;
+    }
+  };
+
+  // Calculate tick interval based on range and data length
+  const getTickInterval = () => {
+    if (data.length === 0) return 0;
+    
+    switch (selectedRange) {
+      case '1h':
+        return Math.ceil(data.length / 6); // Show ~6 ticks
+      case '6h':
+        return Math.ceil(data.length / 8); // Show ~8 ticks
+      case '12h':
+        return Math.ceil(data.length / 10); // Show ~10 ticks
+      case '24h':
+        return Math.ceil(data.length / 12); // Show ~12 ticks
+      default:
+        return Math.ceil(data.length / 10);
+    }
+  };
+
   return (
     <div className="section-card">
       <div className="section-header">
@@ -210,7 +246,16 @@ function TimelineChart({ data, deviceName, devices, onSelectDevice, selectedRang
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="time" stroke="#6b7280" style={{ fontSize: 12 }} />
+              <XAxis 
+                dataKey="time" 
+                stroke="#6b7280" 
+                style={{ fontSize: 12 }}
+                tickFormatter={formatTime}
+                interval={getTickInterval()}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
               <YAxis domain={[40, 90]} stroke="#6b7280" style={{ fontSize: 12 }} />
               <Tooltip 
                 contentStyle={{ 
@@ -220,6 +265,7 @@ function TimelineChart({ data, deviceName, devices, onSelectDevice, selectedRang
                   fontSize: '12px'
                 }}
                 labelStyle={{ fontWeight: 'bold', color: BRAND.primary }}
+                labelFormatter={formatTime}
               />
               <Area type="monotone" dataKey="value" stroke={BRAND.primary} strokeWidth={2} fill="url(#colorGradient)" />
             </AreaChart>
@@ -275,8 +321,6 @@ function TimelineChart({ data, deviceName, devices, onSelectDevice, selectedRang
 // Recommendations
 function Recommendations({ devices, onHighlightZones }) {
   const avgNoise = devices.reduce((s, d) => s + d.laeq, 0) / devices.length;
-  const quietZones = devices.filter(d => d.laeq < 55);
-  const quietZoneIds = quietZones.map(d => d.id);
 
   const recs = [
     avgNoise > 70 && {
@@ -285,13 +329,6 @@ function Recommendations({ devices, onHighlightZones }) {
       desc: 'Consider noise reduction measures in high-traffic areas',
       color: BRAND.danger,
       action: null
-    },
-    quietZones.length > 0 && {
-      icon: '🌿',
-      title: `${quietZones.length} Quiet Zones Available`,
-      desc: `Perfect areas for study: ${quietZones.map(d => d.id.replace('UAB_NODE_', 'N')).join(', ')}`,
-      color: BRAND.primary,
-      action: () => onHighlightZones(quietZoneIds)
     },
     devices.filter(d => d.battery < 30).length > 0 && {
       icon: '🔋',
@@ -309,7 +346,7 @@ function Recommendations({ devices, onHighlightZones }) {
         <p className="section-subtitle">AI-powered insights for campus acoustics</p>
       </div>
       <div className="recommendations-list">
-        {recs.map((rec, i) => (
+        {recs.length > 0 ? recs.map((rec, i) => (
           <div
             key={i}
             className="recommendation-item"
@@ -326,7 +363,11 @@ function Recommendations({ devices, onHighlightZones }) {
               {rec.action && <div style={{ fontSize: '11px', color: BRAND.primary, fontWeight: 600, marginTop: '4px' }}>👆 Click to highlight on map</div>}
             </div>
           </div>
-        ))}
+        )) : (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#6b7280' }}>
+            <p>✅ All systems running optimally</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -367,7 +408,7 @@ function DistributionChart({ devices }) {
 }
 
 // Public Insights (for students) - NOW FETCHES FROM API
-function PublicInsights({ apiUrl }) {
+function PublicInsights({ apiUrl, devices, onHighlightZones }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -392,6 +433,10 @@ function PublicInsights({ apiUrl }) {
   const sorted = [...data].sort((a, b) => a.avg - b.avg);
   const best = sorted.slice(0, 3).map(d => d.hour);
 
+  // Quiet zones
+  const quietZones = devices.filter(d => d.laeq < 55);
+  const quietZoneIds = quietZones.map(d => d.id);
+
   if (loading) {
     return (
       <div className="section-card">
@@ -404,43 +449,75 @@ function PublicInsights({ apiUrl }) {
   }
 
   return (
-    <div className="section-card">
-      <div className="section-header">
-        <h2 className="section-title">📚 Campus Noise Insights</h2>
-        <p className="section-subtitle">Find the best study times based on daily sound trends</p>
-      </div>
-      <div className="chart-container" style={{ height: 260 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="hour" stroke="#6b7280" style={{ fontSize: 12 }} />
-            <YAxis domain={[40, 80]} stroke="#6b7280" style={{ fontSize: 12 }} />
-            <Tooltip />
-            <Area type="monotone" dataKey="avg" stroke={BRAND.primary} strokeWidth={2} fillOpacity={0.12} fill={BRAND.primary} />
-          </AreaChart>
-        </ResponsiveContainer>
+    <>
+      <div className="section-card">
+        <div className="section-header">
+          <h2 className="section-title">📚 Campus Noise Insights</h2>
+          <p className="section-subtitle">Find the best study times based on daily sound trends</p>
+        </div>
+        <div className="chart-container" style={{ height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="hour" stroke="#6b7280" style={{ fontSize: 12 }} />
+              <YAxis domain={[40, 80]} stroke="#6b7280" style={{ fontSize: 12 }} />
+              <Tooltip />
+              <Area type="monotone" dataKey="avg" stroke={BRAND.primary} strokeWidth={2} fillOpacity={0.12} fill={BRAND.primary} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+          <p style={{ fontWeight: 700, color: '#059669', marginBottom: 6 }}>
+            🌅 Recomendación: Los mejores horarios para estudiar hoy
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {best.map((h, idx) => (
+              <div key={idx} style={{
+                background: 'white',
+                border: `2px solid ${BRAND.primary}`,
+                padding: '8px 12px',
+                borderRadius: 10,
+                fontWeight: 700
+              }}>{h}</div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div style={{ marginTop: '16px', textAlign: 'center' }}>
-        <p style={{ fontWeight: 700, color: '#059669', marginBottom: 6 }}>
-          🌅 Recomendación: Los mejores horarios para estudiar hoy
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-          {best.map((h, idx) => (
-            <div key={idx} style={{
-              background: 'white',
-              border: `2px solid ${BRAND.primary}`,
-              padding: '8px 12px',
-              borderRadius: 10,
-              fontWeight: 700
-            }}>{h}</div>
-          ))}
+      {/* Quiet Zones Recommendations */}
+      <div className="section-card">
+        <div className="section-header">
+          <h2 className="section-title">🌿 Quiet Study Zones</h2>
+          <p className="section-subtitle">Perfect spots for focused study and reading</p>
         </div>
-        <p style={{ marginTop: 8, color: '#6b7280' }}>
-          Tip: Busca zonas marcadas como Quiet Zones en el mapa para maximizar concentración.
-        </p>
+        {quietZones.length > 0 ? (
+          <div
+            className="recommendation-item"
+            style={{
+              borderLeftColor: BRAND.primary,
+              cursor: 'pointer'
+            }}
+            onClick={() => onHighlightZones(quietZoneIds)}
+          >
+            <span className="rec-icon">🌿</span>
+            <div className="rec-content">
+              <div className="rec-title">{quietZones.length} Quiet Zones Available Right Now</div>
+              <div className="rec-desc">
+                Perfect areas for study and concentration: {quietZones.map(d => d.id.replace('UAB_NODE_', 'N')).join(', ')} (all below 55 dB)
+              </div>
+              <div style={{ fontSize: '11px', color: BRAND.primary, fontWeight: 600, marginTop: '4px' }}>
+                👆 Click to highlight these zones on the map
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#6b7280' }}>
+            <p>No quiet zones available at this moment. Check back later!</p>
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -500,6 +577,139 @@ function HistoricalAnalysis({ apiUrl }) {
 
       <div style={{ marginTop: '12px', fontSize: '14px', color: '#6b7280' }}>
         <p><strong>Interpretación rápida:</strong> Los periodos de tarde muestran los valores medios más altos en la mayoría de zonas. Recomendado: campañas de concienciación, control de tráfico o medidas de aislamiento acústico en zonas con picos consistentes.</p>
+      </div>
+    </div>
+  );
+}
+
+// Device Health & Status Monitor (for staff)
+function DeviceHealthMonitor({ devices }) {
+  const getHealthStatus = (device) => {
+    if (device.status !== 'online') return { status: 'offline', color: BRAND.danger, icon: '🔴' };
+    if (device.battery < 20) return { status: 'critical', color: BRAND.danger, icon: '🔋' };
+    if (device.battery < 40) return { status: 'warning', color: BRAND.warning, icon: '⚠️' };
+    if (device.laeq > 85) return { status: 'alert', color: BRAND.warning, icon: '🔊' };
+    return { status: 'healthy', color: BRAND.primary, icon: '✅' };
+  };
+
+  const alerts = devices.filter(d => {
+    const health = getHealthStatus(d);
+    return health.status !== 'healthy';
+  });
+
+  return (
+    <div className="section-card">
+      <div className="section-header">
+        <h2 className="section-title">🏥 Device Health & Status Monitor</h2>
+        <p className="section-subtitle">
+          {alerts.length > 0 
+            ? `${alerts.length} device(s) require attention` 
+            : 'All systems operational'}
+        </p>
+      </div>
+
+      {alerts.length > 0 && (
+        <div style={{ 
+          marginBottom: '16px', 
+          padding: '12px', 
+          background: '#fef3c7',
+          border: '2px solid #f59e0b',
+          borderRadius: '8px'
+        }}>
+          <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
+            ⚠️ Active Alerts ({alerts.length})
+          </div>
+          {alerts.map((device, idx) => {
+            const health = getHealthStatus(device);
+            return (
+              <div key={idx} style={{ 
+                fontSize: '13px', 
+                color: '#78350f',
+                marginBottom: 4 
+              }}>
+                {health.icon} <strong>{device.id}</strong>: {
+                  health.status === 'offline' ? 'Device offline' :
+                  health.status === 'critical' ? `Critical battery (${device.battery.toFixed(0)}%)` :
+                  health.status === 'warning' ? `Low battery (${device.battery.toFixed(0)}%)` :
+                  health.status === 'alert' ? `High noise level (${device.laeq.toFixed(1)} dB)` : ''
+                }
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+        gap: '12px' 
+      }}>
+        {devices.map(device => {
+          const health = getHealthStatus(device);
+          return (
+            <div key={device.id} style={{
+              padding: '16px',
+              background: health.status === 'healthy' ? '#f9fafb' : '#fef3c7',
+              border: `2px solid ${health.color}`,
+              borderRadius: '12px',
+              transition: 'all 0.2s'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: 8
+              }}>
+                <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                  {device.id.replace('UAB_NODE_', 'Node ')}
+                </div>
+                <div style={{ fontSize: '18px' }}>{health.icon}</div>
+              </div>
+
+              <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: 8 }}>
+                <div style={{ marginBottom: 4 }}>
+                  <strong>Status:</strong> <span style={{ color: health.color, fontWeight: 600 }}>
+                    {health.status.toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ marginBottom: 4 }}>
+                  <strong>Battery:</strong> {device.battery.toFixed(0)}%
+                  <div style={{ 
+                    marginTop: 4,
+                    height: 6, 
+                    background: '#e5e7eb', 
+                    borderRadius: 3,
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ 
+                      height: '100%', 
+                      width: `${device.battery}%`,
+                      background: device.battery < 20 ? BRAND.danger : 
+                                 device.battery < 40 ? BRAND.warning : 
+                                 BRAND.primary,
+                      transition: 'width 0.3s'
+                    }}></div>
+                  </div>
+                </div>
+                <div style={{ marginBottom: 4 }}>
+                  <strong>Noise:</strong> {device.laeq.toFixed(1)} dB
+                </div>
+                <div>
+                  <strong>Class:</strong> {CLASS_CONFIG[device.class].icon} {CLASS_CONFIG[device.class].name}
+                </div>
+              </div>
+
+              <div style={{ 
+                fontSize: '11px', 
+                color: '#9ca3af',
+                borderTop: '1px solid #e5e7eb',
+                paddingTop: 8
+              }}>
+                Last update: {new Date(device.timestamp).toLocaleTimeString('es-ES')}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -590,7 +800,7 @@ export default function App() {
         {viewMode === 'public' && (
           <>
             <CampusMap devices={devices} onSelectDevice={handleSelectDevice} highlightedDevices={highlightedDevices} />
-            <PublicInsights apiUrl={API_URL} />
+            <PublicInsights apiUrl={API_URL} devices={devices} onHighlightZones={handleHighlightZones} />
           </>
         )}
 
@@ -644,6 +854,8 @@ export default function App() {
             </div>
 
             <HistoricalAnalysis apiUrl={API_URL} />
+
+            <DeviceHealthMonitor devices={devices} />
           </>
         )}
       </div>

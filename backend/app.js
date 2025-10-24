@@ -39,7 +39,7 @@ const NODE_POSITIONS = [
 // ================================
 let lastData = NODE_POSITIONS.map(node => generateSensorData(node));
 
-// Historial: últimas 24 horas por dispositivo (máx 25 puntos por dispositivo)
+// Historial: últimas mediciones por dispositivo
 const timeseriesHistory = {};
 NODE_POSITIONS.forEach(node => {
   timeseriesHistory[node.id] = [];
@@ -85,9 +85,9 @@ function saveToHistory(data) {
   const deviceId = data.id;
   const timestamp = new Date(data.timestamp);
   
-  // Guardar en timeline (formato para gráfica temporal)
+  // Guardar en timeline
   const timePoint = {
-    time: timestamp.toISOString().slice(11, 16), // HH:MM
+    time: timestamp.toISOString(), // Full ISO timestamp for better filtering
     value: data.laeq,
     timestamp: data.timestamp
   };
@@ -98,8 +98,8 @@ function saveToHistory(data) {
   
   timeseriesHistory[deviceId].push(timePoint);
   
-  // Mantener solo últimas 25 mediciones
-  if (timeseriesHistory[deviceId].length > 25) {
+  // Mantener solo últimas 1440 mediciones (24 horas con mediciones cada minuto)
+  if (timeseriesHistory[deviceId].length > 1440) {
     timeseriesHistory[deviceId].shift();
   }
   
@@ -137,16 +137,65 @@ app.get("/api/data", (req, res) => {
   });
 });
 
-// GET /api/data/:deviceId - Obtener timeline de un dispositivo específico
+// GET /api/data/:deviceId - Obtener timeline de un dispositivo específico con filtro de rango
 app.get("/api/data/:deviceId", (req, res) => {
   const deviceId = req.params.deviceId;
-  const timeline = timeseriesHistory[deviceId] || [];
+  const range = req.query.range || '24h'; // Default: 24h
+  
+  let timeline = timeseriesHistory[deviceId] || [];
+  
+  // Filtrar según el rango temporal solicitado
+  const now = new Date();
+  let cutoffTime;
+  
+  switch (range) {
+    case '1h':
+      cutoffTime = new Date(now.getTime() - 60 * 60 * 1000);
+      break;
+    case '6h':
+      cutoffTime = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+      break;
+    case '12h':
+      cutoffTime = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+      break;
+    case '24h':
+    default:
+      cutoffTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      break;
+  }
+  
+  // Filtrar datos dentro del rango
+  const filteredTimeline = timeline.filter(point => {
+    const pointTime = new Date(point.timestamp);
+    return pointTime >= cutoffTime;
+  });
+  
+  // Formatear el tiempo según el rango para mejor visualización
+  const formattedTimeline = filteredTimeline.map(point => {
+    const date = new Date(point.timestamp);
+    let formattedTime;
+    
+    if (range === '1h') {
+      // Para 1 hora: mostrar HH:MM:SS
+      formattedTime = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } else {
+      // Para otros rangos: mostrar HH:MM
+      formattedTime = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    return {
+      time: formattedTime,
+      value: point.value,
+      timestamp: point.timestamp
+    };
+  });
   
   res.json({
     success: true,
     deviceId: deviceId,
-    count: timeline.length,
-    data: timeline
+    range: range,
+    count: formattedTimeline.length,
+    data: formattedTimeline
   });
 });
 
@@ -161,7 +210,8 @@ app.get("/api/daily-pattern", (req, res) => {
     
     Object.values(timeseriesHistory).forEach(timeline => {
       timeline.forEach(point => {
-        const pointHour = parseInt(point.time.split(':')[0]);
+        const pointDate = new Date(point.timestamp);
+        const pointHour = pointDate.getHours();
         if (pointHour === h) {
           sum += point.value;
           count++;
@@ -253,18 +303,19 @@ if (SIMULATE) {
   setInterval(async () => {
     lastData = NODE_POSITIONS.map(node => {
       const data = generateSensorData(node);
-      saveToHistory(data); // 🔥 Guardar en historial
+      saveToHistory(data);
       sendToCloud(data);
       return data;
     });
   }, SIMULATE_INTERVAL_MS);
 }
 
-// Generar datos iniciales para el historial
+// Generar datos iniciales para el historial (últimas 24 horas)
 NODE_POSITIONS.forEach(node => {
-  for (let i = 24; i >= 0; i--) {
+  // Generar 1440 puntos (1 por minuto durante 24 horas)
+  for (let i = 1440; i >= 0; i--) {
     const data = generateSensorData(node);
-    data.timestamp = new Date(Date.now() - i * 3600000).toISOString();
+    data.timestamp = new Date(Date.now() - i * 60 * 1000).toISOString();
     saveToHistory(data);
   }
 });
@@ -293,7 +344,7 @@ app.listen(PORT, () => {
   console.log(`🌍 EchoSense API corriendo en http://localhost:${PORT}`);
   console.log(`🧩 Endpoints disponibles:`);
   console.log(`   📍 GET  /api/data - Estado actual de todos los nodos`);
-  console.log(`   📊 GET  /api/data/:deviceId - Timeline de un dispositivo`);
+  console.log(`   📊 GET  /api/data/:deviceId?range=1h|6h|12h|24h - Timeline de un dispositivo`);
   console.log(`   📈 GET  /api/daily-pattern - Patrón diario agregado`);
   console.log(`   🏛️  GET  /api/historical-zones - Histórico por zonas`);
 });
