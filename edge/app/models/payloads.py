@@ -1,19 +1,16 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class DevicePayload(BaseModel):
     id: str = Field(..., description="Unique identifier of the device")
     laeq: float = Field(..., ge=0, description="Equivalent sound level (dB)")
     peak: float = Field(..., ge=0, description="Maximum sound level (dB)")
-    class_: str = Field(
+    class_: Literal["silence", "traffic", "voices", "music", "machinery", "unknown"] = Field(
         ...,
         alias="class",
-        description="Sound category (silence, traffic, voices, music, machinery, etc.)",
-    )
-    battery: int = Field(
-        ..., ge=0, le=100, description="Remaining battery percentage of the device"
+        description="Sound category (silence, traffic, voices, music, machinery, unknown)",
     )
     status: Literal["online", "offline", "error"] = Field(
         ..., description="Current status of the node"
@@ -22,9 +19,11 @@ class DevicePayload(BaseModel):
         ..., description="UTC timestamp when the measurement was generated"
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = {
+        "populate_by_name": True
+    }
 
-    @validator("class_")
+    @field_validator("class_")
+    @classmethod
     def normalize_class(cls, value: str) -> str:
         return value.strip().lower()
