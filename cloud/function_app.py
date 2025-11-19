@@ -6,9 +6,8 @@ import logging
 app = func.FunctionApp()
 
 # -------------------------------------------------
-# 1. INSERTAR DATOS (POST)
-# -------------------------------------------------
-@app.route(route="ingestApi", auth_level=func.AuthLevel.ANONYMOUS)      #la ruta final sera: .../api/route
+#INSERTAR DATOS DESDE UN NODO (POST)
+@app.route(route="ingestData", auth_level=func.AuthLevel.ANONYMOUS)      #la ruta final sera: .../api/route
 @app.sql_output(arg_name="salidaDb",                                    #esto con lo que insertaremos los datos en la BD (func.Out[func.SqlRow])
                 command_text="[dbo].[device_payloads]",                 #esto es la tabla donde vamos a insertar datos
                 connection_string_setting="SqlConnectionString")        
@@ -40,20 +39,77 @@ def CrearEmpleado(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> fun
     except Exception as e:
         logging.error(e)
         return func.HttpResponse(f"Error: {str(e)}", status_code=500)
+    
+
+#-----------------------------------------------
+#REGISTRAR NODO (POST)
+@app.route(route="nodeRegistration", auth_level=func.AuthLevel.ANONYMOUS)
+@app.sql_output(arg_name="salidaDb",     
+                command_text="[dbo].[node_metadata]",   
+                connection_string_setting="SqlConnectionString")
+def nodeRegistration(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> func.HttpResponse:
+    logging.info('Registrando nodo en la BD...')
+
+    try:
+        cuerpo = req.get_json()
+        
+        nueva_fila = func.SqlRow({
+            "id": cuerpo.get("id"),
+            "lat": cuerpo.get("lat"),
+            "lon": cuerpo.get("lon"),
+            "battery": cuerpo.get("battery")
+        })
+
+        salidaDb.set(nueva_fila)
+
+        return func.HttpResponse(
+            json.dumps({"mensaje": "El nodo se ha registrado con éxito!"}),
+            status_code=201,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        logging.error(e)
+        return func.HttpResponse(f"Error: {str(e)}", status_code=500)
 
 # -------------------------------------------------
-# 2. LEER DATOS (GET)
-# -------------------------------------------------
-@app.route(route="obtainData", auth_level=func.AuthLevel.ANONYMOUS)
-@app.sql_input(arg_name="listaEmpleados",                               #aqui se almacenan todas las filas obtenidas de la base de datos (func.SqlRowList)
+#LEER DATOS de la BD [TODOS LOS DE LA TABLA DE PAYLOADS] raw (GET)
+@app.route(route="obtainRawData", auth_level=func.AuthLevel.ANONYMOUS)
+@app.sql_input(arg_name="datos",                               #aqui se almacenan todas las filas obtenidas de la base de datos (func.SqlRowList)
                command_text="SELECT * FROM [dbo].[device_payloads]",
                command_type="Text",
                connection_string_setting="SqlConnectionString")
-def ObtenerEmpleados(req: func.HttpRequest, listaEmpleados: func.SqlRowList) -> func.HttpResponse:
+def obtainRawData(req: func.HttpRequest, datos: func.SqlRowList) -> func.HttpResponse:
     logging.info('Leyendo BD...')
 
     # Convertimos la respuesta de SQL (que viene en objetos raros) a JSON normal
-    resultados = [json.loads(row.to_json()) for row in listaEmpleados]  #a aprtir de los datos en formato raro que nos devuelve la BD creamos un dict de python
+    resultados = [json.loads(row.to_json()) for row in datos]  #a aprtir de los datos en formato raro que nos devuelve la BD creamos un dict de python
+
+    return func.HttpResponse(
+        json.dumps(resultados),
+        status_code=200,
+        mimetype="application/json"
+    )
+
+
+
+# -------------------------------------------------
+#LEER DATOS de la BD [TODOS LOS DE LA TABLA DE PAYLOADS] raw (GET)
+@app.route(route="obtainData", auth_level=func.AuthLevel.ANONYMOUS)
+@app.sql_input(arg_name="payloads",                   
+               command_text="SELECT * FROM [dbo].[device_payloads]",
+               command_type="Text",
+               connection_string_setting="SqlConnectionString")
+@app.sql_input(arg_name="metadata",                 
+               command_text="SELECT * FROM [dbo].[device_payloads]",
+               command_type="Text",
+               connection_string_setting="SqlConnectionString")
+def obtainData(req: func.HttpRequest, payloads: func.SqlRowList, metadata: func.SqlRowList) -> func.HttpResponse:
+    logging.info('Leyendo BD...')
+
+    payloads_results = [json.loads(row.to_json()) for row in payloads] 
+    metadata_results = [json.loads(row.to_json()) for row in metadata]
+
+    #TODO: hacer la logica para ahcer el enrichment
 
     return func.HttpResponse(
         json.dumps(resultados),
