@@ -93,14 +93,14 @@ def obtainRawData(req: func.HttpRequest, datos: func.SqlRowList) -> func.HttpRes
 
 
 # -------------------------------------------------
-#LEER DATOS de la BD [TODOS LOS DE LA TABLA DE PAYLOADS] raw (GET)
+#LEER DATOS de la BD (GET)
 @app.route(route="obtainData", auth_level=func.AuthLevel.ANONYMOUS)
 @app.sql_input(arg_name="payloads",                   
                command_text="SELECT * FROM [dbo].[device_payloads]",
                command_type="Text",
                connection_string_setting="SqlConnectionString")
 @app.sql_input(arg_name="metadata",                 
-               command_text="SELECT * FROM [dbo].[device_payloads]",
+               command_text="SELECT * FROM [dbo].[node_metadata]",
                command_type="Text",
                connection_string_setting="SqlConnectionString")
 def obtainData(req: func.HttpRequest, payloads: func.SqlRowList, metadata: func.SqlRowList) -> func.HttpResponse:
@@ -110,6 +110,25 @@ def obtainData(req: func.HttpRequest, payloads: func.SqlRowList, metadata: func.
     metadata_results = [json.loads(row.to_json()) for row in metadata]
 
     #TODO: hacer la logica para ahcer el enrichment
+    resultados = []
+
+    for payload in payloads_results:
+        node = next((item for item in metadata_results if item['id'] == payload.id), None)
+
+        if node is not None:
+            enriched_data = {}
+
+            enriched_data['id'] = payload['id']
+            enriched_data['lat'] = node['lat']
+            enriched_data['lon'] = node['lon'] 
+            enriched_data['laeq'] = payload['laeq']
+            enriched_data['peak'] = payload['peak']
+            enriched_data['class'] = payload['class']
+            enriched_data['battery'] = metadata['battery']
+            enriched_data['status'] = payload['status']
+            enriched_data['timestamp'] = payload['timestamp']
+
+            resultados.append(enriched_data)
 
     return func.HttpResponse(
         json.dumps(resultados),
