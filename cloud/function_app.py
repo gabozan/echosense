@@ -11,7 +11,7 @@ app = func.FunctionApp()
 @app.sql_output(arg_name="salidaDb",                                    #esto con lo que insertaremos los datos en la BD (func.Out[func.SqlRow])
                 command_text="[dbo].[device_payloads]",                 #esto es la tabla donde vamos a insertar datos
                 connection_string_setting="SqlConnectionString")        
-def CrearEmpleado(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> func.HttpResponse:
+def ingestData(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> func.HttpResponse:
     logging.info('Insertando lecturas en la BD...')
 
     try:
