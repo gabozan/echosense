@@ -1,5 +1,6 @@
-<<<<<<< HEAD
-# EchoSense (Branch deprecated)
+
+# EchoSense (ACTIVE Branch)
+
 =======
 # Getting Started with Create React App
 
