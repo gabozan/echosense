@@ -1,38 +1,9 @@
-# --- DEPENDENCIAS ---
-/node_modules
-/.pnp
-.pnp.js
+.vscode
+vscode
 
-# --- TESTING ---
-/coverage
+README.md
+readme.md
+*.md
 
-# --- PRODUCCIÓN (Builds) ---
-# Ignoramos esto porque Azure creará su propia carpeta build
-/build
-/dist
-
-# --- SISTEMA / MISC ---
-.DS_Store
-.vscode/
-
-# --- VARIABLES DE ENTORNO (SEGURIDAD CRÍTICA) ---
-# Bloqueamos todos los archivos de entorno locales para no subir contraseñas
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-# ¡IMPORTANTE! Agregado porque aparece en tu imagen:
-.env
-
-# --- LOGS ---
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# --- BACKEND / PYTHON (Detectado por tu carpeta .venv) ---
-# Ignoramos entornos virtuales y archivos compilados de Python
-.venv
 venv
-ENV/
-__pycache__/
-*.pyc
+.venv
