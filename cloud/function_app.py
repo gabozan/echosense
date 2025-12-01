@@ -5,6 +5,13 @@ import time
 import random
 
 
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "http://localhost:3000",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization"
+}
+
+
 # Inicializamos la app
 app = func.FunctionApp()
 
@@ -37,7 +44,8 @@ def CrearEmpleado(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> fun
         return func.HttpResponse(
             json.dumps({"mensaje": "La lectura ha sido guardada con éxito!"}),
             status_code=201,
-            mimetype="application/json"
+            mimetype="application/json",
+            headers=CORS_HEADERS
         )
     except Exception as e:
         logging.error(e)
@@ -68,7 +76,8 @@ def nodeRegistration(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> 
         return func.HttpResponse(
             json.dumps({"mensaje": "El nodo se ha registrado con éxito!"}),
             status_code=201,
-            mimetype="application/json"
+            mimetype="application/json",
+            headers=CORS_HEADERS
         )
     except Exception as e:
         logging.error(e)
@@ -90,7 +99,8 @@ def obtainRawData(req: func.HttpRequest, datos: func.SqlRowList) -> func.HttpRes
     return func.HttpResponse(
         json.dumps(resultados),
         status_code=200,
-        mimetype="application/json"
+        mimetype="application/json",
+        headers=CORS_HEADERS
     )
 
 
@@ -148,5 +158,6 @@ def obtainData(req: func.HttpRequest, payloads: func.SqlRowList, metadata: func.
     return func.HttpResponse(
         json.dumps(resultados),
         status_code=200,
-        mimetype="application/json"
+        mimetype="application/json",
+        headers=CORS_HEADERS
     )
