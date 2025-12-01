@@ -730,7 +730,7 @@ export default function App() {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const res = await axios.get(`${API_URL}/data`);
+        const res = await axios.get(`${API_URL}`);
         setDevices(res.data.data || []);
       } catch (err) {
         console.error('Error fetching devices:', err);
