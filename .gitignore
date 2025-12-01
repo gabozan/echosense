@@ -7,3 +7,11 @@ readme.md
 
 venv
 .venv
+
+build
+.build
+
+node_modules
+/node_modules
+/build
+
