@@ -141,16 +141,16 @@ def obtainData(req: func.HttpRequest, payloads: func.SqlRowList, metadata: func.
                 'timestamp': node_data['timestamp']
             }
         else:
-            simulated_laeq = round(random.uniform(30.0, 65.0), 2)
+            simulated_laeq = round(random.uniform(30.0, 95.0), 2)
             node_result = {
                 'id': node['id'],
                 'lat': node['lat'],
                 'lon': node['lon'],
                 'laeq': simulated_laeq,
-                'peak': round(simulated_laeq + random.uniform(5.0, 20.0), 2),
+                'peak': round(simulated_laeq + random.uniform(5.0, 30.0), 2),
                 'class': random.choice(['silence', 'traffic', 'voices', 'music', 'machinery']),
                 'battery': node['battery'],
-                'status': random.choice(['active']),
+                'status': random.choice(['online', 'offline', 'damaged']),
                 'timestamp': int(time.time())
             }
         resultados.append(node_result)
