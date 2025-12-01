@@ -1,31 +1,47 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { DeviceCard, ScreenContainer } from "../components";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { DeviceCard, ScreenContainer, PrimaryButton } from "../components";
+import { useBLE } from "../hooks/useBLE";
 
 export default function DeviceListScreen() {
-  // Mock temporal (más tarde BLE)
-  const devices = [
-    { name: "ESP32 Node A", id: "00:11:22:33" },
-    { name: "ESP32 Node B", id: "44:55:66:77" },
-    { name: "MANEL CALVO", id: "44:55:16:77" },
-  ];
+  const { devices, isScanning, error, startScan, stopScan } = useBLE();
 
   return (
     <ScreenContainer>
-        <View style={styles.container}>
-            <Text style={styles.title}>Dispositivos detectados</Text>
+      <View style={styles.container}>
+        <Text style={styles.title}>Dispositivos detectados</Text>
 
-            <View style={styles.list}>
-                {devices.map((d) => (
-                <DeviceCard
-                    key={d.id}
-                    name={d.name}
-                    id={d.id}
-                    onPress={() => console.log("Click en", d.name)}
-                />
-                ))}
-            </View>
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        <PrimaryButton
+          title={isScanning ? "Detener escaneo" : "Buscar dispositivos"}
+          onPress={isScanning ? stopScan : startScan}
+        />
+
+        {isScanning && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.scanningText}>Escaneando...</Text>
+          </View>
+        )}
+
+        <View style={styles.list}>
+          {devices.length === 0 && !isScanning && (
+            <Text style={styles.emptyText}>
+              No se han detectado dispositivos. Presiona el botón para escanear.
+            </Text>
+          )}
+
+          {devices.map((device) => (
+            <DeviceCard
+              key={device.id}
+              name={device.name || "Dispositivo sin nombre"}
+              id={device.id}
+              onPress={() => console.log("Click en", device.name, device.id)}
+            />
+          ))}
         </View>
+      </View>
     </ScreenContainer>
   );
 }
@@ -41,6 +57,27 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
+  },
+  error: {
+    color: "red",
+    textAlign: "center",
+    marginBottom: 10,
+    fontSize: 14,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  scanningText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#666",
+  },
+  emptyText: {
+    textAlign: "center",
+    color: "#999",
+    marginTop: 20,
+    fontSize: 14,
   },
   list: {
     marginTop: 10,

@@ -1,0 +1,90 @@
+import { useState, useEffect } from "react";
+import { PermissionsAndroid, Platform } from "react-native";
+import { Device } from "react-native-ble-plx";
+import BLEService from "../services/BLEService";
+
+export const useBLE = () => {
+    const [devices, setDevices] = useState<Device[]>([]);
+    const [isScanning, setIsScanning] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Solicitar permisos de Bluetooth en Android
+    const requestPermissions = async () => {
+        if (Platform.OS === "android") {
+            try {
+                const granted = await PermissionsAndroid.requestMultiple([
+                    PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+                    PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+                    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                ]);
+
+                const allGranted = Object.values(granted).every(
+                    (status) => status === PermissionsAndroid.RESULTS.GRANTED
+                );
+
+                if (!allGranted) {
+                    setError("Permisos de Bluetooth denegados");
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                console.error("Error requesting permissions:", err);
+                setError("Error solicitando permisos");
+                return false;
+            }
+        }
+        return true;
+    };
+
+    // Iniciar el escaneo
+    const startScan = async () => {
+        const hasPermission = await requestPermissions();
+        if (!hasPermission) return;
+
+        setDevices([]);
+        setError(null);
+        setIsScanning(true);
+
+        BLEService.scanForDevices(
+            (device) => {
+                setDevices((prevDevices) => {
+                    // Evitar duplicados
+                    const exists = prevDevices.find((d) => d.id === device.id);
+                    if (exists) return prevDevices;
+                    return [...prevDevices, device];
+                });
+            },
+            (error) => {
+                console.error("Scan error:", error);
+                setError("Error durante el escaneo");
+                setIsScanning(false);
+            }
+        );
+
+        // Detener automáticamente después de 10 segundos
+        setTimeout(() => {
+            stopScan();
+        }, 10000);
+    };
+
+    // Detener el escaneo
+    const stopScan = () => {
+        BLEService.stopScan();
+        setIsScanning(false);
+    };
+
+    // Cleanup al desmontar
+    useEffect(() => {
+        return () => {
+            BLEService.stopScan();
+        };
+    }, []);
+
+    return {
+        devices,
+        isScanning,
+        error,
+        startScan,
+        stopScan,
+    };
+};
