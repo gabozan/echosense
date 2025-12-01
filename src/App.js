@@ -731,14 +731,14 @@ export default function App() {
     const fetchDevices = async () => {
       try {
         const res = await axios.get(`${API_URL}`);
-        setDevices(res.data.data || []);
+        setDevices(res.data || []);
       } catch (err) {
         console.error('Error fetching devices:', err);
       }
     };
 
     fetchDevices();
-    const interval = setInterval(fetchDevices, 60000); // refrescar cada 60s
+    const interval = setInterval(fetchDevices, 8000); // refrescar cada 8s
     return () => clearInterval(interval);
   }, [API_URL]);
 
