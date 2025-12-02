@@ -44,8 +44,7 @@ def CrearEmpleado(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> fun
         return func.HttpResponse(
             json.dumps({"mensaje": "La lectura ha sido guardada con éxito!"}),
             status_code=201,
-            mimetype="application/json",
-            headers=CORS_HEADERS
+            mimetype="application/json"
         )
     except Exception as e:
         logging.error(e)
@@ -76,8 +75,7 @@ def nodeRegistration(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> 
         return func.HttpResponse(
             json.dumps({"mensaje": "El nodo se ha registrado con éxito!"}),
             status_code=201,
-            mimetype="application/json",
-            headers=CORS_HEADERS
+            mimetype="application/json"
         )
     except Exception as e:
         logging.error(e)
@@ -99,8 +97,7 @@ def obtainRawData(req: func.HttpRequest, datos: func.SqlRowList) -> func.HttpRes
     return func.HttpResponse(
         json.dumps(resultados),
         status_code=200,
-        mimetype="application/json",
-        headers=CORS_HEADERS
+        mimetype="application/json"
     )
 
 
@@ -158,6 +155,5 @@ def obtainData(req: func.HttpRequest, payloads: func.SqlRowList, metadata: func.
     return func.HttpResponse(
         json.dumps(resultados),
         status_code=200,
-        mimetype="application/json",
-        headers=CORS_HEADERS
+        mimetype="application/json"
     )
