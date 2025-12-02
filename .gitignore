@@ -5,3 +5,8 @@ device
 node_modules
 vscode
 __pycache__
+/build
+.venv
+venv
+/venv
+/.venv
