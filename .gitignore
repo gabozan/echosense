@@ -1,5 +1,5 @@
 .env
-.vscode
+
 device
 .node_modules
 node_modules
@@ -11,3 +11,6 @@ venv
 .venv
 /venv
 /.venv
+
+/vscode
+/.vscode
