@@ -41,7 +41,7 @@ async def forward_to_cloud(payload: Dict[str, Any]) -> httpx.Response:
                 latency_ms = (time.perf_counter() - start) * 1000
                 
                 logger.info(
-                    "Cloud response: %s %s (latency: %.2f ms)", 
+                    "☁️ Cloud response: %s %s (latency: %.2f ms)", 
                     response.status_code, 
                     response.reason_phrase, 
                     latency_ms
