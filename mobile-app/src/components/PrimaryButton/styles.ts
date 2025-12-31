@@ -16,6 +16,10 @@ export default StyleSheet.create({
     marginTop: 0,
   },
 
+  disabled: {
+    opacity: 0.5,
+  },
+
   text: {
     color: "white",
     fontSize: 16,
