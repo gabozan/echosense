@@ -2,9 +2,17 @@ import React from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { DeviceCard, ScreenContainer, PrimaryButton } from "../components";
 import { useBLE } from "../hooks/useBLE";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../app/AppNavigator";
 
-export default function DeviceListScreen() {
+type Props = NativeStackScreenProps<RootStackParamList, "DeviceList">;
+
+export default function DeviceListScreen({ navigation }: Props) {
   const { devices, isScanning, error, startScan, stopScan } = useBLE();
+
+  const handleDevicePress = (deviceId: string, deviceName: string) => {
+    navigation.navigate("WifiConfig", { deviceId, deviceName });
+  };
 
   return (
     <ScreenContainer>
@@ -37,7 +45,7 @@ export default function DeviceListScreen() {
               key={device.id}
               name={device.name || "Dispositivo sin nombre"}
               id={device.id}
-              onPress={() => console.log("Click en", device.name, device.id)}
+              onPress={() => handleDevicePress(device.id, device.name || "Dispositivo")}
             />
           ))}
         </View>
@@ -83,3 +91,4 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 });
+
