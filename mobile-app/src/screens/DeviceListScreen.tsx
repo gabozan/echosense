@@ -17,35 +17,35 @@ export default function DeviceListScreen({ navigation }: Props) {
   return (
     <ScreenContainer>
       <View style={styles.container}>
-        <Text style={styles.title}>Dispositivos detectados</Text>
+        <Text style={styles.title}>Detected devices</Text>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
         <PrimaryButton
-          title={isScanning ? "Detener escaneo" : "Buscar dispositivos"}
+          title={isScanning ? "Stop scanning" : "Search devices"}
           onPress={isScanning ? stopScan : startScan}
         />
 
         {isScanning && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.scanningText}>Escaneando...</Text>
+            <ActivityIndicator size="large" color="#08ff46ff" />
+            <Text style={styles.scanningText}>Scanning...</Text>
           </View>
         )}
 
         <View style={styles.list}>
           {devices.length === 0 && !isScanning && (
             <Text style={styles.emptyText}>
-              No se han detectado dispositivos. Presiona el botón para escanear.
+              No devices detected. Press the button to scan.
             </Text>
           )}
 
           {devices.map((device) => (
             <DeviceCard
               key={device.id}
-              name={device.name || "Dispositivo sin nombre"}
+              name={device.name || "Unnamed device"}
               id={device.id}
-              onPress={() => handleDevicePress(device.id, device.name || "Dispositivo")}
+              onPress={() => handleDevicePress(device.id, device.name || "Device")}
             />
           ))}
         </View>

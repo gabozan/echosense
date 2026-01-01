@@ -25,13 +25,13 @@ export const useBLE = () => {
                 );
 
                 if (!allGranted) {
-                    setError("Permisos de Bluetooth denegados");
+                    setError("Bluetooth permissions denied");
                     return false;
                 }
                 return true;
             } catch (err) {
                 console.error("Error requesting permissions:", err);
-                setError("Error solicitando permisos");
+                setError("Error requesting permissions");
                 return false;
             }
         }
@@ -58,7 +58,7 @@ export const useBLE = () => {
             },
             (error) => {
                 console.error("Scan error:", error);
-                setError("Error durante el escaneo");
+                setError("Error during scanning");
                 setIsScanning(false);
             }
         );
@@ -86,7 +86,7 @@ export const useBLE = () => {
             return true;
         } catch (err) {
             console.error("Connection error:", err);
-            setError("Error al conectar con el dispositivo");
+            setError("Error connecting to device");
             setIsConnecting(false);
             return false;
         }
@@ -100,7 +100,7 @@ export const useBLE = () => {
             return true;
         } catch (err) {
             console.error("Write error:", err);
-            setError("Error al enviar credenciales WiFi");
+            setError("Error sending WiFi credentials");
             return false;
         }
     };
