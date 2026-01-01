@@ -43,7 +43,7 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
 
     const handleSend = async () => {
         if (!ssid.trim()) {
-            Alert.alert("Error", "Por favor ingresa el SSID de la red WiFi");
+            Alert.alert("Error", "Please enter the WiFi network SSID");
             return;
         }
 
@@ -53,8 +53,8 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
 
         if (success) {
             Alert.alert(
-                "Éxito",
-                "Credenciales WiFi enviadas correctamente",
+                "Success",
+                "WiFi credentials sent successfully",
                 [
                     {
                         text: "OK",
@@ -63,20 +63,20 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
                 ]
             );
         } else {
-            Alert.alert("Error", "No se pudieron enviar las credenciales");
+            Alert.alert("Error", "Could not send credentials");
         }
     };
 
     return (
         <ScreenContainer>
             <View style={styles.container}>
-                <Text style={styles.title}>Configurar WiFi</Text>
-                <Text style={styles.subtitle}>Dispositivo: {deviceName}</Text>
+                <Text style={styles.title}>Configure WiFi</Text>
+                <Text style={styles.subtitle}>Device: {deviceName}</Text>
 
                 {isConnecting && (
                     <View style={styles.statusContainer}>
                         <ActivityIndicator size="large" color="#007AFF" />
-                        <Text style={styles.statusText}>Conectando...</Text>
+                        <Text style={styles.statusText}>Connecting...</Text>
                     </View>
                 )}
 
@@ -85,16 +85,16 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
                 {isConnected && (
                     <>
                         <View style={styles.connectedBadge}>
-                            <Text style={styles.connectedText}>✓ Conectado</Text>
+                            <Text style={styles.connectedText}>✓ Connected</Text>
                         </View>
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>SSID (Nombre de la red)</Text>
+                            <Text style={styles.label}>SSID (Network name)</Text>
                             <TextInput
                                 style={styles.input}
                                 value={ssid}
                                 onChangeText={setSsid}
-                                placeholder="Ingresa el nombre de la red"
+                                placeholder="Enter network name"
                                 placeholderTextColor="#999"
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -102,12 +102,12 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
                         </View>
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Contraseña</Text>
+                            <Text style={styles.label}>Password</Text>
                             <TextInput
                                 style={styles.input}
                                 value={password}
                                 onChangeText={setPassword}
-                                placeholder="Ingresa la contraseña"
+                                placeholder="Enter password"
                                 placeholderTextColor="#999"
                                 secureTextEntry
                                 autoCapitalize="none"
@@ -117,7 +117,7 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
 
                         <View style={styles.buttonContainer}>
                             <PrimaryButton
-                                title={isSending ? "Enviando..." : "Enviar credenciales"}
+                                title={isSending ? "Sending..." : "Send credentials"}
                                 onPress={handleSend}
                                 disabled={isSending || !ssid.trim()}
                             />
@@ -127,7 +127,7 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
 
                 <View style={styles.backButtonContainer}>
                     <PrimaryButton
-                        title="Volver"
+                        title="Back"
                         onPress={() => navigation.goBack()}
                         size="small"
                     />
