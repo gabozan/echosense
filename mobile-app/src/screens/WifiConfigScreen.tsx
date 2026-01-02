@@ -75,7 +75,7 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
 
                 {isConnecting && (
                     <View style={styles.statusContainer}>
-                        <ActivityIndicator size="large" color="#007AFF" />
+                        <ActivityIndicator size="large" color="#000000ff" />
                         <Text style={styles.statusText}>Connecting...</Text>
                     </View>
                 )}
@@ -84,10 +84,6 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
 
                 {isConnected && (
                     <>
-                        <View style={styles.connectedBadge}>
-                            <Text style={styles.connectedText}>✓ Connected</Text>
-                        </View>
-
                         <View style={styles.inputContainer}>
                             <Text style={styles.label}>SSID (Network name)</Text>
                             <TextInput
@@ -151,7 +147,7 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 14,
-        color: "#666",
+        color: "#000000ff",
         textAlign: "center",
         marginBottom: 30,
     },
@@ -162,24 +158,13 @@ const styles = StyleSheet.create({
     statusText: {
         marginTop: 10,
         fontSize: 14,
-        color: "#666",
+        color: "#000000ff",
     },
     error: {
         color: "red",
         textAlign: "center",
         marginBottom: 10,
         fontSize: 14,
-    },
-    connectedBadge: {
-        backgroundColor: "#e8f5e9",
-        padding: 10,
-        borderRadius: 8,
-        alignItems: "center",
-        marginBottom: 20,
-    },
-    connectedText: {
-        color: "#2e7d32",
-        fontWeight: "600",
     },
     inputContainer: {
         marginBottom: 20,
@@ -188,7 +173,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "600",
         marginBottom: 8,
-        color: "#333",
+        color: "#000000ff",
     },
     input: {
         backgroundColor: "#f5f5f5",
