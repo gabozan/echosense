@@ -13,7 +13,7 @@ class BLEService {
     this.manager = new BleManager();
   }
 
-  // Iniciar escaneo de dispositivos BLE
+  // Start scanning for BLE devices
   scanForDevices(
     onDeviceFound: (device: Device) => void,
     onError?: (error: any) => void
@@ -31,12 +31,12 @@ class BLEService {
     });
   }
 
-  // Detener el escaneo
+  // Stop scanning
   stopScan() {
     this.manager.stopDeviceScan();
   }
 
-  // Conectar a un dispositivo
+  // Connect to a device
   async connectToDevice(deviceId: string): Promise<Device> {
     this.stopScan();
     const device = await this.manager.connectToDevice(deviceId);
@@ -46,13 +46,12 @@ class BLEService {
     return device;
   }
 
-  // Escribir credenciales WiFi al dispositivo en formato "<SSID>|<PASSWORD>"
+  // Write WiFi credentials to device in "<SSID>|<PASSWORD>" format
   async writeWifiCredentials(ssid: string, password: string): Promise<void> {
     if (!this.connectedDevice) {
       throw new Error("No device connected");
     }
 
-    // El ESP32 espera el formato "<SSID>|<PASSWORD>"
     const payload = `${ssid}|${password}`;
     const payloadBase64 = Buffer.from(payload).toString("base64");
 
@@ -64,7 +63,7 @@ class BLEService {
     console.log("WiFi credentials sent successfully:", payload);
   }
 
-  // Desconectar del dispositivo
+  // Disconnect from device
   async disconnectDevice(): Promise<void> {
     if (this.connectedDevice) {
       try {
@@ -76,8 +75,8 @@ class BLEService {
           console.log("Disconnected from device:", this.connectedDevice.name);
         }
       } catch (err) {
-        // Ignoramos errores aquí ya que lo importante es limpiar el estado
-        // y a veces el dispositivo ya se ha desconectado por su cuenta.
+        // We ignore errors here since the important thing is to clean up the state
+        // and sometimes the device has already disconnected on its own.
         // console.log("Disconnect cleanup (benign error):", err);
       } finally {
         this.connectedDevice = null;
@@ -85,7 +84,7 @@ class BLEService {
     }
   }
 
-  // Destruir el manager cuando no se necesita
+  // Destroy the manager when no longer needed
   destroy() {
     this.disconnectDevice();
     this.manager.destroy();

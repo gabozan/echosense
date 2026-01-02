@@ -10,6 +10,7 @@ import {
 import { ScreenContainer, PrimaryButton } from "../components";
 import { useBLE } from "../hooks/useBLE";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { commonStyles } from "../styles/screenStyles";
 
 type RootStackParamList = {
     DeviceList: undefined;
@@ -69,8 +70,8 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
 
     return (
         <ScreenContainer>
-            <View style={styles.container}>
-                <Text style={styles.title}>Configure WiFi</Text>
+            <View style={commonStyles.container}>
+                <Text style={commonStyles.title}>Configure WiFi</Text>
                 <Text style={styles.subtitle}>Device: {deviceName}</Text>
 
                 {isConnecting && (
@@ -80,7 +81,7 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
                     </View>
                 )}
 
-                {error && <Text style={styles.error}>{error}</Text>}
+                {error && <Text style={commonStyles.error}>{error}</Text>}
 
                 {isConnected && (
                     <>
@@ -91,7 +92,7 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
                                 value={ssid}
                                 onChangeText={setSsid}
                                 placeholder="Enter network name"
-                                placeholderTextColor="#999"
+                                placeholderTextColor="#999999ff"
                                 autoCapitalize="none"
                                 autoCorrect={false}
                             />
@@ -104,7 +105,7 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
                                 value={password}
                                 onChangeText={setPassword}
                                 placeholder="Enter password"
-                                placeholderTextColor="#999"
+                                placeholderTextColor="#999999ff"
                                 secureTextEntry
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -134,46 +135,29 @@ export default function WifiConfigScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 20,
-        paddingTop: 60,
-    },
-    title: {
-        fontSize: 26,
-        fontWeight: "bold",
-        textAlign: "center",
-        marginBottom: 8,
-    },
     subtitle: {
         fontSize: 14,
         color: "#000000ff",
         textAlign: "center",
-        marginBottom: 30,
+        marginBottom: 30
     },
     statusContainer: {
         alignItems: "center",
-        marginVertical: 30,
+        marginVertical: 30
     },
     statusText: {
         marginTop: 10,
         fontSize: 14,
-        color: "#000000ff",
-    },
-    error: {
-        color: "red",
-        textAlign: "center",
-        marginBottom: 10,
-        fontSize: 14,
+        color: "#000000ff"
     },
     inputContainer: {
-        marginBottom: 20,
+        marginBottom: 20
     },
     label: {
         fontSize: 14,
         fontWeight: "600",
         marginBottom: 8,
-        color: "#000000ff",
+        color: "#000000ff"
     },
     input: {
         backgroundColor: "#f5f5f5",
@@ -182,12 +166,13 @@ const styles = StyleSheet.create({
         fontSize: 16,
         borderWidth: 1,
         borderColor: "#e0e0e0",
+        color: "#000000ff"
     },
     buttonContainer: {
         marginTop: 20,
     },
     backButtonContainer: {
         marginTop: 20,
-        alignItems: "center",
-    },
+        alignItems: "center"
+    }
 });
