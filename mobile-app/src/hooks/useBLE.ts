@@ -10,7 +10,7 @@ export const useBLE = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Solicitar permisos de Bluetooth en Android
+    // Request Bluetooth permissions on Android
     const requestPermissions = async () => {
         if (Platform.OS === "android") {
             try {
@@ -38,7 +38,7 @@ export const useBLE = () => {
         return true;
     };
 
-    // Iniciar el escaneo
+    // Start scanning
     const startScan = async () => {
         const hasPermission = await requestPermissions();
         if (!hasPermission) return;
@@ -50,7 +50,7 @@ export const useBLE = () => {
         BLEService.scanForDevices(
             (device) => {
                 setDevices((prevDevices) => {
-                    // Evitar duplicados
+                    // Avoid duplicates
                     const exists = prevDevices.find((d) => d.id === device.id);
                     if (exists) return prevDevices;
                     return [...prevDevices, device];
@@ -63,19 +63,19 @@ export const useBLE = () => {
             }
         );
 
-        // Detener automáticamente después de 10 segundos
+        // Stop automatically after 10 seconds
         setTimeout(() => {
             stopScan();
         }, 10000);
     };
 
-    // Detener el escaneo
+    // Stop scanning
     const stopScan = () => {
         BLEService.stopScan();
         setIsScanning(false);
     };
 
-    // Conectar a un dispositivo
+    // Connect to a device
     const connectToDevice = async (deviceId: string): Promise<boolean> => {
         setIsConnecting(true);
         setError(null);
@@ -92,7 +92,7 @@ export const useBLE = () => {
         }
     };
 
-    // Enviar credenciales WiFi
+    // Send WiFi credentials
     const sendWifiCredentials = async (ssid: string, password: string): Promise<boolean> => {
         setError(null);
         try {
@@ -105,7 +105,7 @@ export const useBLE = () => {
         }
     };
 
-    // Desconectar del dispositivo
+    // Disconnect from device
     const disconnect = async () => {
         try {
             await BLEService.disconnectDevice();
@@ -115,7 +115,7 @@ export const useBLE = () => {
         }
     };
 
-    // Cleanup al desmontar
+    // Cleanup on unmount
     useEffect(() => {
         return () => {
             BLEService.stopScan();
@@ -136,4 +136,3 @@ export const useBLE = () => {
         disconnect,
     };
 };
-

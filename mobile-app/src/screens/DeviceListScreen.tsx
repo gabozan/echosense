@@ -4,6 +4,7 @@ import { DeviceCard, ScreenContainer, PrimaryButton } from "../components";
 import { useBLE } from "../hooks/useBLE";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../app/AppNavigator";
+import { commonStyles } from "../styles/screenStyles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "DeviceList">;
 
@@ -16,10 +17,10 @@ export default function DeviceListScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer>
-      <View style={styles.container}>
-        <Text style={styles.title}>Detected devices</Text>
+      <View style={commonStyles.container}>
+        <Text style={commonStyles.title}>Detected devices</Text>
 
-        {error && <Text style={styles.error}>{error}</Text>}
+        {error && <Text style={commonStyles.error}>{error}</Text>}
 
         <PrimaryButton
           title={isScanning ? "Stop scanning" : "Search devices"}
@@ -55,40 +56,22 @@ export default function DeviceListScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  error: {
-    color: "red",
-    textAlign: "center",
-    marginBottom: 10,
-    fontSize: 14,
-  },
   loadingContainer: {
     alignItems: "center",
-    marginVertical: 20,
+    marginVertical: 20
   },
   scanningText: {
     marginTop: 10,
     fontSize: 14,
-    color: "#000000ff",
+    color: "#000000ff"
   },
   emptyText: {
     textAlign: "center",
     color: "#000000ff",
     marginTop: 20,
-    fontSize: 14,
+    fontSize: 14
   },
   list: {
-    marginTop: 10,
-  },
+    marginTop: 10
+  }
 });
-

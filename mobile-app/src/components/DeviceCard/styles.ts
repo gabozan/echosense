@@ -8,21 +8,18 @@ export default StyleSheet.create({
     backgroundColor: "#eeeeeeff",
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "center"
   },
-
   infoContainer: {
-    flex: 1,
+    flex: 1
   },
-
   name: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "bold"
   },
-
   id: {
     fontSize: 14,
     color: "#666666ff",
-    marginTop: 2,
+    marginTop: 2
   }
 });
