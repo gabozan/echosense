@@ -28,7 +28,7 @@ export default function DeviceListScreen({ navigation }: Props) {
 
         {isScanning && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#08ff46ff" />
+            <ActivityIndicator size="large" color="#000000ff" />
             <Text style={styles.scanningText}>Scanning...</Text>
           </View>
         )}
@@ -79,11 +79,11 @@ const styles = StyleSheet.create({
   scanningText: {
     marginTop: 10,
     fontSize: 14,
-    color: "#666",
+    color: "#000000ff",
   },
   emptyText: {
     textAlign: "center",
-    color: "#999",
+    color: "#000000ff",
     marginTop: 20,
     fontSize: 14,
   },
