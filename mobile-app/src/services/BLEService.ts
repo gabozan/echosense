@@ -75,9 +75,8 @@ class BLEService {
           console.log("Disconnected from device:", this.connectedDevice.name);
         }
       } catch (err) {
-        // We ignore errors here since the important thing is to clean up the state
-        // and sometimes the device has already disconnected on its own.
-        // console.log("Disconnect cleanup (benign error):", err);
+        // Ignore errors
+        // Device may have already disconnected
       } finally {
         this.connectedDevice = null;
       }
