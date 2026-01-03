@@ -1,3 +1,16 @@
 .env
-.vscode
+
 device
+.node_modules
+node_modules
+vscode
+__pycache__
+/build
+
+venv
+.venv
+/venv
+/.venv
+
+/vscode
+/.vscode

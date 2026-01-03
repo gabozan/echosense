@@ -1,6 +1,16 @@
 import azure.functions as func
 import json
 import logging
+import time
+import random
+
+
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "http://localhost:3000",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization"
+}
+
 
 # Inicializamos la app
 app = func.FunctionApp()
@@ -11,7 +21,7 @@ app = func.FunctionApp()
 @app.sql_output(arg_name="salidaDb",                                    #esto con lo que insertaremos los datos en la BD (func.Out[func.SqlRow])
                 command_text="[dbo].[device_payloads]",                 #esto es la tabla donde vamos a insertar datos
                 connection_string_setting="SqlConnectionString")        
-def ingestData(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> func.HttpResponse:
+def CrearEmpleado(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> func.HttpResponse:
     logging.info('Insertando lecturas en la BD...')
 
     try:
@@ -96,7 +106,7 @@ def obtainRawData(req: func.HttpRequest, datos: func.SqlRowList) -> func.HttpRes
 #LEER DATOS de la BD (GET)
 @app.route(route="obtainData", auth_level=func.AuthLevel.ANONYMOUS)
 @app.sql_input(arg_name="payloads",                   
-               command_text="SELECT * FROM [dbo].[device_payloads]",
+               command_text="SELECT * FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY id ORDER BY timestamp DESC) AS rn FROM [dbo].[device_payloads]) x WHERE rn = 1;",
                command_type="Text",
                connection_string_setting="SqlConnectionString")
 @app.sql_input(arg_name="metadata",                 
@@ -109,27 +119,39 @@ def obtainData(req: func.HttpRequest, payloads: func.SqlRowList, metadata: func.
     payloads_results = [json.loads(row.to_json()) for row in payloads] 
     metadata_results = [json.loads(row.to_json()) for row in metadata]
 
-    #TODO: hacer la logica para ahcer el enrichment
+    #TODO: hacer la logica para hacer el enrichment
     resultados = []
-
-    for payload in payloads_results:
-        node = next((item for item in metadata_results if item['id'] == payload.id), None)
-
-        if node is not None:
-            enriched_data = {}
-
-            enriched_data['id'] = payload['id']
-            enriched_data['lat'] = node['lat']
-            enriched_data['lon'] = node['lon'] 
-            enriched_data['laeq'] = payload['laeq']
-            enriched_data['peak'] = payload['peak']
-            enriched_data['class'] = payload['class']
-            enriched_data['battery'] = metadata['battery']
-            enriched_data['status'] = payload['status']
-            enriched_data['timestamp'] = payload['timestamp']
-
-            resultados.append(enriched_data)
-
+    for node in metadata_results:
+        logging.info('debug--------')
+        logging.info(len(metadata_results))
+        node_data = next((d for d in payloads_results if d['id'] == node['id']), None)
+        if node_data is not None:
+            node_result = {
+                'id': node['id'],
+                'lat': node['lat'],
+                'lon': node['lon'],
+                'laeq': node_data['laeq'],
+                'peak': node_data['peak'],
+                'class': node_data['class'],
+                'battery': node['battery'],
+                'status': node_data['status'],
+                'timestamp': node_data['timestamp']
+            }
+        else:
+            simulated_laeq = round(random.uniform(30.0, 95.0), 2)
+            node_result = {
+                'id': node['id'],
+                'lat': node['lat'],
+                'lon': node['lon'],
+                'laeq': simulated_laeq,
+                'peak': round(simulated_laeq + random.uniform(5.0, 30.0), 2),
+                'class': random.choice(['silence', 'traffic', 'voices', 'music', 'machinery']),
+                'battery': node['battery'],
+                'status': random.choice(['online', 'offline', 'damaged']),
+                'timestamp': int(time.time())
+            }
+        resultados.append(node_result)
+        
     return func.HttpResponse(
         json.dumps(resultados),
         status_code=200,

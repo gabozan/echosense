@@ -5,36 +5,21 @@ export default StyleSheet.create({
     padding: 14,
     marginVertical: 6,
     borderRadius: 10,
-    backgroundColor: "#aeaeaeff",
+    backgroundColor: "#eeeeeeff",
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "center"
   },
-
   infoContainer: {
-    flex: 1,
+    flex: 1
   },
-
   name: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "bold"
   },
-
   id: {
     fontSize: 14,
-    color: "#666",
-    marginTop: 2,
-  },
-
-  button: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    backgroundColor: "#4C6EF5",
-    borderRadius: 8,
-  },
-
-  buttonText: {
-    color: "white",
-    fontWeight: "600",
+    color: "#666666ff",
+    marginTop: 2
   }
 });

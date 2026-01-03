@@ -6,9 +6,11 @@ import BLEService from "../services/BLEService";
 export const useBLE = () => {
     const [devices, setDevices] = useState<Device[]>([]);
     const [isScanning, setIsScanning] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [isConnected, setIsConnected] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Solicitar permisos de Bluetooth en Android
+    // Request Bluetooth permissions on Android
     const requestPermissions = async () => {
         if (Platform.OS === "android") {
             try {
@@ -23,20 +25,20 @@ export const useBLE = () => {
                 );
 
                 if (!allGranted) {
-                    setError("Permisos de Bluetooth denegados");
+                    setError("Bluetooth permissions denied");
                     return false;
                 }
                 return true;
             } catch (err) {
                 console.error("Error requesting permissions:", err);
-                setError("Error solicitando permisos");
+                setError("Error requesting permissions");
                 return false;
             }
         }
         return true;
     };
 
-    // Iniciar el escaneo
+    // Start scanning
     const startScan = async () => {
         const hasPermission = await requestPermissions();
         if (!hasPermission) return;
@@ -48,7 +50,7 @@ export const useBLE = () => {
         BLEService.scanForDevices(
             (device) => {
                 setDevices((prevDevices) => {
-                    // Evitar duplicados
+                    // Avoid duplicates
                     const exists = prevDevices.find((d) => d.id === device.id);
                     if (exists) return prevDevices;
                     return [...prevDevices, device];
@@ -56,35 +58,81 @@ export const useBLE = () => {
             },
             (error) => {
                 console.error("Scan error:", error);
-                setError("Error durante el escaneo");
+                setError("Error during scanning");
                 setIsScanning(false);
             }
         );
 
-        // Detener automáticamente después de 10 segundos
+        // Stop automatically after 10 seconds
         setTimeout(() => {
             stopScan();
         }, 10000);
     };
 
-    // Detener el escaneo
+    // Stop scanning
     const stopScan = () => {
         BLEService.stopScan();
         setIsScanning(false);
     };
 
-    // Cleanup al desmontar
+    // Connect to a device
+    const connectToDevice = async (deviceId: string): Promise<boolean> => {
+        setIsConnecting(true);
+        setError(null);
+        try {
+            await BLEService.connectToDevice(deviceId);
+            setIsConnected(true);
+            setIsConnecting(false);
+            return true;
+        } catch (err) {
+            console.error("Connection error:", err);
+            setError("Error connecting to device");
+            setIsConnecting(false);
+            return false;
+        }
+    };
+
+    // Send WiFi credentials
+    const sendWifiCredentials = async (ssid: string, password: string): Promise<boolean> => {
+        setError(null);
+        try {
+            await BLEService.writeWifiCredentials(ssid, password);
+            return true;
+        } catch (err) {
+            console.error("Write error:", err);
+            setError("Error sending WiFi credentials");
+            return false;
+        }
+    };
+
+    // Disconnect from device
+    const disconnect = async () => {
+        try {
+            await BLEService.disconnectDevice();
+            setIsConnected(false);
+        } catch (err) {
+            console.error("Disconnect error:", err);
+        }
+    };
+
+    // Cleanup on unmount
     useEffect(() => {
         return () => {
             BLEService.stopScan();
+            BLEService.disconnectDevice();
         };
     }, []);
 
     return {
         devices,
         isScanning,
+        isConnecting,
+        isConnected,
         error,
         startScan,
         stopScan,
+        connectToDevice,
+        sendWifiCredentials,
+        disconnect,
     };
 };
