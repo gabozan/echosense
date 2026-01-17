@@ -59,65 +59,18 @@ void loop() {
   if (isConnected && (millis() - lastCapture > 10000)) {
     lastCapture = millis();
     
-    Serial.println("\n[MAIN] === Starting Audio Capture ===");
+    Serial.println("\n[MAIN] === Starting Acoustic Measurement ===");
     
-    // Start I2S
-    audioStart();
-
-    // MEJORA 1: Buffer estático para no saturar la memoria Stack
-    static int32_t buffer[AUDIO_BUFFER_SAMPLES];
-
-    // MEJORA 2: Lectura de "Calentamiento" (Warm-up)
-    // Leemos buffers para estabilizar el micro y el filtro DC
-    for (int i = 0; i < 5; i++) {
-      audioCapture(buffer, AUDIO_BUFFER_SAMPLES);
-    }
+    // Measure for 1 second (1000ms) to get LAeq and Peak
+    AudioMetrics metrics = audioMeasure(1000);
     
-    // Ahora sí, captura real
-    size_t samplesRead = audioCapture(buffer, AUDIO_BUFFER_SAMPLES);
-    
-    if (samplesRead > 0) {
-      Serial.printf("[MAIN] Captured %d samples\n", samplesRead);
-      
-      // DEBUG: Print first 5 raw samples to verify data
-      Serial.println("[MAIN] DEBUG Raw samples (first 5):");
-      for (int i = 0; i < 5 && i < (int)samplesRead; i++) {
-        Serial.printf("  [%d] raw=0x%08X (%d)\n", i, (unsigned int)buffer[i], buffer[i]);
-      }
-      
-      // Calculate stats
-      float minVal = 1.0f;
-      float maxVal = -1.0f;
-      float rmsSum = 0.0f;
-      
-      for (size_t i = 0; i < samplesRead; i++) {
-        float sample = audioSampleToFloat(buffer[i]);
-        
-        if (sample < minVal) minVal = sample;
-        if (sample > maxVal) maxVal = sample;
-        
-        rmsSum += sample * sample;
-      }
-      
-      float rms = sqrtf(rmsSum / samplesRead);
-      float rmsDb = 20.0f * log10f(rms + 1e-10f);
-      
-      // ICS-43434: Sensitivity = -26 dBFS @ 94 dB SPL
-      // Therefore: dB_SPL = dBFS + 120
-      float dbSPL = rmsDb + 120.0f;
-
-      Serial.printf("[MAIN] Signal: Min=%.6f, Max=%.6f\n", minVal, maxVal);
-      Serial.printf("[MAIN] RMS=%.6f, dBFS=%.2f\n", rms, rmsDb);
-      Serial.printf("[MAIN] Sound Level: %.1f dB SPL\n", dbSPL);
-      
+    if (metrics.success) {
+      Serial.printf("[MAIN] Results: LAeq=%.1f dB, LApeak=%.1f dB\n", metrics.LAeq, metrics.LApeak);
     } else {
-      Serial.println("[MAIN] ERROR: Failed to capture audio");
+      Serial.println("[MAIN] Measurement Failed");
     }
-    
-    // Stop I2S
-    audioStop();
 
-    Serial.println("[MAIN] === Audio Capture Complete ===\n");
+    Serial.println("[MAIN] === Measurement Complete ===\n");
   }
   
   // 4. Periodic status log

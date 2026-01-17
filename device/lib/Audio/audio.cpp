@@ -1,15 +1,11 @@
 #include "audio.h"
 #include <driver/i2s.h>
 
-// ============================================================================
 // ICS-43434 MEMS Microphone - ESP32 I2S Driver
-// ============================================================================
-// Key specs from datasheet:
+// Key specs:
 // - 24-bit audio, I2S output
-// - Sensitivity: -26 dBFS @ 94 dB SPL  ->  94 = -26 + OFFSET  ->  OFFSET = 120
+// - Sensitivity: -26 dBFS @ 94 dB SPL -> Offset = 120
 // - L/R pin LOW = Left channel (data on WS falling edge)
-// - L/R pin HIGH = Right channel (data on WS rising edge)
-// ============================================================================
 
 #define I2S_PORT I2S_NUM_0
 
@@ -17,9 +13,9 @@
 static bool g_initialized = false;
 static bool g_active = false;
 
-// DC offset filter (high-pass to remove mic bias)
+// DC offset filter (high-pass)
 static float g_dcOffset = 0.0f;
-static const float DC_ALPHA = 0.995f;  // Very slow adaptation
+static const float DC_ALPHA = 0.995f;
 
 bool audioInit() {
     if (g_initialized) {
@@ -156,4 +152,200 @@ float audioSampleToDb(int32_t rawSample) {
     // dBFS calculation
     float db = 20.0f * log10f(fabsf(normalized));
     return db;
+}
+
+// ============================================================================
+// Logic Refactor: High-level analysis function
+// ============================================================================
+AudioAnalysis audioAnalyze() {
+    AudioAnalysis result = {0};
+    result.success = false;
+
+    if (!g_initialized) {
+        Serial.println("[Audio] Error: Audio not initialized");
+        return result;
+    }
+
+    Serial.println("[Audio] Starting analysis...");
+
+    // 1. Start I2S
+    audioStart();
+
+    // 2. Buffer allocation (Static to avoid stack overflow)
+    static int32_t buffer[AUDIO_BUFFER_SAMPLES];
+
+    // 3. Warm-up (Mic stabilization + DC filter settling)
+    // Read 5 buffers and discard to clear startup transients
+    for (int i = 0; i < 5; i++) {
+        audioCapture(buffer, AUDIO_BUFFER_SAMPLES);
+    }
+
+    // 4. Actual Capture
+    size_t samplesRead = audioCapture(buffer, AUDIO_BUFFER_SAMPLES);
+
+    if (samplesRead > 0) {
+        Serial.printf("[Audio] Captured %d samples\n", samplesRead);
+
+        // DEBUG: Print first 5 raw samples
+        Serial.println("[Audio] DEBUG Raw samples (first 5):");
+        for (int i = 0; i < 5 && i < (int)samplesRead; i++) {
+            Serial.printf("  [%d] raw=0x%08X (%d)\n", i, (unsigned int)buffer[i], buffer[i]);
+        }
+
+        // 5. Calculate Statistics
+        float minVal = 1.0f;
+        float maxVal = -1.0f;
+        float rmsSum = 0.0f;
+
+        for (size_t i = 0; i < samplesRead; i++) {
+            float sample = audioSampleToFloat(buffer[i]);
+
+            if (sample < minVal) minVal = sample;
+            if (sample > maxVal) maxVal = sample;
+
+            rmsSum += sample * sample;
+        }
+
+        result.minVal = minVal;
+        result.maxVal = maxVal;
+        result.rms = sqrtf(rmsSum / samplesRead);
+        result.rmsDb = 20.0f * log10f(result.rms + 1e-10f); // Avoid log(0)
+        
+        // ICS-43434 Calibration: -26dBFS sensitivity @ 94dB SPL -> Offset +120
+        result.dbSPL = result.rmsDb + 120.0f; 
+        result.success = true;
+
+        Serial.printf("[Audio] Signal: Min=%.6f, Max=%.6f\n", result.minVal, result.maxVal);
+        Serial.printf("[Audio] RMS=%.6f, dBFS=%.2f\n", result.rms, result.rmsDb);
+        Serial.printf("[Audio] Sound Level: %.1f dB SPL\n", result.dbSPL);
+
+    } else {
+        Serial.println("[Audio] ERROR: Failed to capture samples");
+    }
+
+    // 6. Stop I2S
+    audioStop();
+    Serial.println("[Audio] Analysis complete");
+
+    return result;
+}
+
+// A-Weighting Filter (IIR Biquad approximation for 16kHz sample rate)
+// Coefficients calculated for Fs=16000 Hz using bilinear transform.
+// Emphasizes 1-4kHz range (human hearing sensitivity).
+
+// Filter state
+static float g_aWeightZ1 = 0.0f;
+static float g_aWeightZ2 = 0.0f;
+
+// Biquad coefficients
+static const float A_B0 = 0.2343f;
+static const float A_B1 = 0.0f;
+static const float A_B2 = -0.2343f;
+static const float A_A1 = -1.4142f;
+static const float A_A2 = 0.5314f;
+
+static float applyAWeighting(float sample) {
+    // Direct Form II Transposed biquad
+    float output = A_B0 * sample + g_aWeightZ1;
+    g_aWeightZ1 = A_B1 * sample - A_A1 * output + g_aWeightZ2;
+    g_aWeightZ2 = A_B2 * sample - A_A2 * output;
+    return output;
+}
+
+static void resetAWeightingFilter() {
+    g_aWeightZ1 = 0.0f;
+    g_aWeightZ2 = 0.0f;
+}
+
+// Acoustic Metrics: LAeq, Peak measurement
+AudioMetrics audioMeasure(uint32_t durationMs) {
+    AudioMetrics result = {0};
+    result.success = false;
+    result.durationMs = 0;
+
+    if (!g_initialized) {
+        Serial.println("[Audio] Error: Not initialized");
+        return result;
+    }
+
+    Serial.printf("[Audio] Starting %dms measurement...\n", durationMs);
+
+    // Reset filters
+    g_dcOffset = 0.0f;
+    resetAWeightingFilter();
+
+    // Start I2S
+    audioStart();
+
+    // Static buffer
+    static int32_t buffer[AUDIO_BUFFER_SAMPLES];
+
+    // Warm-up: 5 buffers to stabilize DC filter and mic
+    for (int i = 0; i < 5; i++) {
+        size_t read = audioCapture(buffer, AUDIO_BUFFER_SAMPLES);
+        for (size_t j = 0; j < read; j++) {
+            audioSampleToFloat(buffer[j]); // Process to train DC filter
+        }
+    }
+    resetAWeightingFilter(); // Reset A-weight after warmup
+
+    // Calculate how many samples we need
+    uint32_t targetSamples = (AUDIO_SAMPLE_RATE * durationMs) / 1000;
+    uint32_t totalSamples = 0;
+
+    // Accumulators
+    double sumSquaredA = 0.0; // For LAeq (double for precision)
+    float peakA = 0.0f; // Peak A-weighted
+
+    unsigned long startTime = millis();
+
+    // Continuous capture loop
+    while (totalSamples < targetSamples) {
+        size_t samplesToRead = min((size_t)(targetSamples - totalSamples), (size_t)AUDIO_BUFFER_SAMPLES);
+        size_t samplesRead = audioCapture(buffer, samplesToRead);
+
+        if (samplesRead == 0) {
+            Serial.println("[Audio] Read error, aborting");
+            break;
+        }
+
+        for (size_t i = 0; i < samplesRead; i++) {
+            // Get normalized sample (DC filtered)
+            float sample = audioSampleToFloat(buffer[i]);
+            
+            // Apply A-weighting
+            float sampleA = applyAWeighting(sample);
+
+            // Accumulate for RMS
+            sumSquaredA += (double)(sampleA * sampleA);
+
+            // Track peaks (absolute value)
+            float absA = fabsf(sampleA);
+            if (absA > peakA) peakA = absA;
+        }
+        totalSamples += samplesRead;
+    }
+
+    result.durationMs = millis() - startTime;
+
+    // Stop I2S
+    audioStop();
+
+    if (totalSamples > 0) {
+        // Calculate RMS
+        float rmsA = sqrtf((float)(sumSquaredA / totalSamples));
+
+        // Convert to dB SPL (with calibration offset +120)
+        result.LAeq = 20.0f * log10f(rmsA + 1e-10f) + 120.0f;
+        result.LApeak = 20.0f * log10f(peakA + 1e-10f) + 120.0f;
+        result.success = true;
+
+        Serial.printf("[Audio] Measured %d samples in %dms\n", totalSamples, result.durationMs);
+        Serial.printf("[Audio] LAeq=%.1f dB, LApeak=%.1f dB\n", result.LAeq, result.LApeak);
+    } else {
+        Serial.println("[Audio] ERROR: No samples captured");
+    }
+
+    return result;
 }
