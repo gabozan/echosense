@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "network.h"
+#include "audio.h"
 
 static bool g_wasConnected = false;
 
@@ -11,6 +12,10 @@ void setup() {
   Serial.println("Booting DEVICE...");
 
   networkInitBLE();
+
+  if (!audioInit()) {
+    Serial.println("[MAIN] ERROR: Failed to initialize audio");
+  }
 }
 
 void loop() {
@@ -49,8 +54,27 @@ void loop() {
 
   g_wasConnected = isConnected;
 
-  // 3. Periodic status log (every 10 seconds)
-  static unsigned long lastLog = 0;
+// 3. Audio capture (only when WiFi is connected, every 10 seconds)
+  static unsigned long lastCapture = 0;
+  if (isConnected && (millis() - lastCapture > 10000)) {
+    lastCapture = millis();
+    
+    Serial.println("\n[MAIN] === Starting Acoustic Measurement ===");
+    
+    // Measure for 1 second (1000ms) to get LAeq and Peak
+    AudioMetrics metrics = audioMeasure(1000);
+    
+    if (metrics.success) {
+      Serial.printf("[MAIN] Results: LAeq=%.1f dB, LApeak=%.1f dB\n", metrics.LAeq, metrics.LApeak);
+    } else {
+      Serial.println("[MAIN] Measurement Failed");
+    }
+
+    Serial.println("[MAIN] === Measurement Complete ===\n");
+  }
+  
+  // 4. Periodic status log
+  static unsigned long lastLog = 5000; // Start at 5s offset
   if (millis() - lastLog > 10000) {
     lastLog = millis();
     
