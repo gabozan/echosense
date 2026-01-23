@@ -10,7 +10,7 @@ router = APIRouter(tags=["edge"])
 
 @router.post("/edge-sim", status_code=status.HTTP_202_ACCEPTED)
 async def receive_from_device(payload: DevicePayload):
-    data = payload.model_dump(by_alias=True)
+    data = payload.model_dump(by_alias=True, mode="json")
     logger.info("Info: Payload received from device: %s", data)
 
     try:
