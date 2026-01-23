@@ -38,7 +38,6 @@ def ingestData(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> func.H
             "timestamp": cuerpo.get("timestamp")
         })
 
-        # ¡Magia! Esto inserta en la base de datos sin escribir INSERT INTO
         salidaDb.set(nueva_fila)
 
         return func.HttpResponse(
