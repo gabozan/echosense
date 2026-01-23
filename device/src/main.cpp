@@ -2,6 +2,10 @@
 #include <WiFi.h>
 #include "network.h"
 #include "audio.h"
+#include "edge.h"
+
+// Device configuration
+#define DEVICE_ID "es-node-003"
 
 static bool g_wasConnected = false;
 
@@ -16,6 +20,10 @@ void setup() {
   if (!audioInit()) {
     Serial.println("[MAIN] ERROR: Failed to initialize audio");
   }
+
+  edgeInit(EDGE_SERVER_URL);
+
+  configTime(3600, 3600, "pool.ntp.org", "time.nist.gov");
 }
 
 void loop() {
@@ -66,6 +74,21 @@ void loop() {
     
     if (metrics.success) {
       Serial.printf("[MAIN] Results: LAeq=%.1f dB, LApeak=%.1f dB\n", metrics.LAeq, metrics.LApeak);
+      
+      // Send to edge server
+      EdgePayload payload;
+      payload.deviceId = DEVICE_ID;
+      payload.laeq = metrics.LAeq;
+      payload.peak = metrics.LApeak;
+      payload.soundClass = SoundClass::SILENCE;  // TODO: Implement classification
+      payload.status = DeviceStatus::ONLINE;
+      
+      int httpCode = edgeSendMetrics(payload);
+      if (httpCode >= 200 && httpCode < 300) {
+        Serial.println("[MAIN] Data sent to edge server");
+      } else {
+        Serial.printf("[MAIN] Failed to send data (HTTP %d)\n", httpCode);
+      }
     } else {
       Serial.println("[MAIN] Measurement Failed");
     }
