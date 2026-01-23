@@ -521,67 +521,6 @@ function PublicInsights({ apiUrl, devices, onHighlightZones }) {
   );
 }
 
-// Historical Analysis (for staff) - NOW FETCHES FROM API
-function HistoricalAnalysis({ apiUrl }) {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchHistorical = async () => {
-      try {
-        const res = await axios.get(`${apiUrl}/historical-zones`);
-        setData(res.data.data || []);
-      } catch (err) {
-        console.error('Error fetching historical zones:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHistorical();
-    const interval = setInterval(fetchHistorical, 300000); // Refresh every 5 min
-    return () => clearInterval(interval);
-  }, [apiUrl]);
-
-  if (loading) {
-    return (
-      <div className="section-card">
-        <div className="section-header">
-          <h2 className="section-title">📈 Historical Noise Analysis</h2>
-          <p className="section-subtitle">Loading historical data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="section-card">
-      <div className="section-header">
-        <h2 className="section-title">📈 Historical Noise Analysis</h2>
-        <p className="section-subtitle">Identify peak noise zones and times to guide improvement actions</p>
-      </div>
-      <div className="chart-container" style={{ height: 320 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="zone" stroke="#6b7280" style={{ fontSize: 12 }} />
-            <YAxis domain={[40, 85]} stroke="#6b7280" style={{ fontSize: 12 }} />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="Morning" stackId="a" fill="#34d399" />
-            <Bar dataKey="Afternoon" stackId="a" fill="#f59e0b" />
-            <Bar dataKey="Night" stackId="a" fill="#3b82f6" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div style={{ marginTop: '12px', fontSize: '14px', color: '#6b7280' }}>
-        <p><strong>Interpretación rápida:</strong> Los periodos de tarde muestran los valores medios más altos en la mayoría de zonas. Recomendado: campañas de concienciación, control de tráfico o medidas de aislamiento acústico en zonas con picos consistentes.</p>
-      </div>
-    </div>
-  );
-}
-
 // Device Health & Status Monitor (for staff)
 function DeviceHealthMonitor({ devices }) {
   const getHealthStatus = (device) => {
@@ -781,21 +720,6 @@ export default function App() {
       <Header />
 
       <div className="container">
-        {/* View Mode Toggle */}
-        <div className="view-mode-toggle">
-          <button
-            className={`toggle-btn ${viewMode === 'public' ? 'active' : ''}`}
-            onClick={() => setViewMode('public')}
-          >
-            👨‍🎓 Public View
-          </button>
-          <button
-            className={`toggle-btn ${viewMode === 'staff' ? 'active' : ''}`}
-            onClick={() => setViewMode('staff')}
-          >
-            👔 Staff Dashboard
-          </button>
-        </div>
 
         {viewMode === 'public' && (
           <>
@@ -839,21 +763,10 @@ export default function App() {
 
             <CampusMap devices={devices} onSelectDevice={handleSelectDevice} highlightedDevices={highlightedDevices} />
 
-            <TimelineChart
-              data={timeseries}
-              deviceName={selectedDevice?.id}
-              devices={devices}
-              onSelectDevice={handleSelectDevice}
-              selectedRange={timeRange}
-              onRangeChange={handleRangeChange}
-            />
-
             <div className="two-column-grid">
               <Recommendations devices={devices} onHighlightZones={handleHighlightZones} />
               <DistributionChart devices={devices} />
             </div>
-
-            <HistoricalAnalysis apiUrl={API_URL} />
 
             <DeviceHealthMonitor devices={devices} />
           </>
