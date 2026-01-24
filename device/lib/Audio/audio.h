@@ -34,8 +34,8 @@ AudioAnalysis audioAnalyze();
 
 // Acoustic Metrics (LAeq, Peak)
 struct AudioMetrics {
-    float LAeq;         // A-weighted equivalent level (dB SPL)
-    float LApeak;       // A-weighted instantaneous peak (dB SPL)
+    float LAeq; // A-weighted equivalent level (dB SPL)
+    float LApeak; // A-weighted instantaneous peak (dB SPL)
     uint32_t durationMs; // Actual measurement duration
     bool success;
 };

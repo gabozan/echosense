@@ -9,6 +9,7 @@
 // BLE functions
 void networkInitBLE();
 void networkStopBLE();
+void networkReleaseMemory();
 bool networkIsBLEActive();
 bool networkHasNewWifiCredentials();
 void networkConsumeWifiCredentials(String &ssid, String &password);
