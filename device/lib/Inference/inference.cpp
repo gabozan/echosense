@@ -8,9 +8,8 @@
 #include <tensorflow/lite/schema/schema_generated.h>
 
 uint8_t* tensorArena = nullptr;
-constexpr int kTensorArenaSize = 45 * 1024; // Reduced to 45KB for Tiny INT8 model
+constexpr int kTensorArenaSize = 45 * 1024; // 45KB for Tiny INT8 model
 
-// Error reporter for TFLite
 static tflite::MicroErrorReporter g_errorReporter;
 
 // TFLite objects
@@ -20,7 +19,7 @@ static TfLiteTensor* g_inputTensor = nullptr;
 static TfLiteTensor* g_outputTensor = nullptr;
 static bool g_initialized = false;
 
-// Mel filter boundaries (stored instead of full filterbank to save ~130KB)
+// Mel filter boundaries
 // Each mel filter only needs: start bin, center bin, end bin
 static int g_melBinStart[INFERENCE_N_MELS];
 static int g_melBinCenter[INFERENCE_N_MELS];
@@ -35,24 +34,16 @@ static const char* CLASS_NAMES[INFERENCE_NUM_CLASSES] = {
     "silence", "traffic", "voices", "music", "machinery"
 };
 
-// ============================================================================
-// Helper: Convert Hz to Mel scale
-// ============================================================================
 static float hzToMel(float hz) {
     return 2595.0f * log10f(1.0f + hz / 700.0f);
 }
 
-// ============================================================================
-// Helper: Convert Mel to Hz scale
-// ============================================================================
+// Convert Mel to Hz scale
 static float melToHz(float mel) {
     return 700.0f * (powf(10.0f, mel / 2595.0f) - 1.0f);
 }
 
-// ============================================================================
 // Initialize Mel filter boundaries (instead of full filterbank)
-// Saves ~130KB of RAM!
-// ============================================================================
 static void computeMelFilterBoundaries() {
     if (g_melFiltersComputed) return;
     
@@ -75,12 +66,10 @@ static void computeMelFilterBoundaries() {
     }
     
     g_melFiltersComputed = true;
-    Serial.println("[INFERENCE] Mel filter boundaries computed (memory-optimized)");
+    Serial.println("[Inference] Mel filter boundaries computed");
 }
 
-// ============================================================================
-// Compute mel filter weight on-the-fly (instead of storing full filterbank)
-// ============================================================================
+// Compute mel filter weight on-the-fly
 static inline float getMelFilterWeight(int melIdx, int binIdx) {
     int start = g_melBinStart[melIdx];
     int center = g_melBinCenter[melIdx];
@@ -99,29 +88,15 @@ static inline float getMelFilterWeight(int melIdx, int binIdx) {
     }
 }
 
-// ============================================================================
 // Initialize Hann window
-// ============================================================================
 static void computeHannWindow() {
     for (int i = 0; i < INFERENCE_N_FFT; i++) {
         g_hannWindow[i] = 0.5f * (1.0f - cosf(2.0f * PI * i / (INFERENCE_N_FFT - 1)));
     }
 }
 
-// ============================================================================
-// Simple DFT - Computes magnitude spectrum for one frame
-// ============================================================================
-
-
-// ============================================================================
-// Simple DFT - Computes magnitude spectrum for one frame
-// ============================================================================
-// ============================================================================
-// Optimized FFT (Cooley-Tukey Radix-2)
-// ============================================================================
+// Fast Fourier Transform
 static void computeMagnitudeSpectrum(const float* frame, float* magnitudes) {
-    // 1. Copy frame to complex buffer (real, imag interleaved)
-    // We reuse memory to avoid stack overflow risks on ESP32
     static float real[INFERENCE_N_FFT];
     static float imag[INFERENCE_N_FFT];
     
@@ -130,7 +105,7 @@ static void computeMagnitudeSpectrum(const float* frame, float* magnitudes) {
         imag[i] = 0.0f;
     }
 
-    // 2. Bit Reversal Permutation
+    // Bit reversal
     int j = 0;
     for (int i = 0; i < INFERENCE_N_FFT - 1; i++) {
         if (i < j) {
@@ -145,7 +120,7 @@ static void computeMagnitudeSpectrum(const float* frame, float* magnitudes) {
         j += k;
     }
 
-    // 3. FFT Butterfly Operations
+    // FFT operations
     for (int len = 2; len <= INFERENCE_N_FFT; len <<= 1) {
         float ang = -2.0 * PI / len;
         float wlen_r = cos(ang);
@@ -173,25 +148,20 @@ static void computeMagnitudeSpectrum(const float* frame, float* magnitudes) {
         }
     }
 
-    // 4. Compute Squared Magnitudes (Power Spectrum)
-    // Only need first N/2 + 1 bins (Nyquist)
+    // Compute squared magnitudes
     int numBins = INFERENCE_N_FFT / 2 + 1;
     for (int k = 0; k < numBins; k++) {
         magnitudes[k] = real[k] * real[k] + imag[k] * imag[k];
     }
 }
 
-// ============================================================================
 // State for streaming inference
-// ============================================================================
 static size_t g_samplesProcessed = 0;
 static float* g_inputBufferPos = nullptr;
 
-// ============================================================================
 // STREAMING API: Start
-// ============================================================================
 bool inferenceStart() {
-    Serial.println("[INFERENCE] Starting Session (Allocating RAM...)");
+    Serial.println("[Inference] Starting session (Allocating RAM)");
     
     // 1. Allocate Arena (Just-In-Time)
     if (tensorArena == nullptr) {
@@ -199,11 +169,11 @@ bool inferenceStart() {
     }
     
     if (tensorArena == NULL) {
-        Serial.println("[INFERENCE] ERROR: OOM - Could not allocate Tensor Arena!");
+        Serial.println("[Inference] Error: Could not allocate Tensor Arena");
         return false;
     }
     
-    // 2. Create Resolver (Static to avoid reconstruction)
+    // 2. Create resolver
     static tflite::MicroMutableOpResolver<15> resolver;
     static bool resolverInit = false;
     if (!resolverInit) {
@@ -218,26 +188,24 @@ bool inferenceStart() {
         resolver.AddMean();
         resolver.AddPad();
         resolver.AddMul();
-        resolver.AddAdd(); // Added missing opcode
+        resolver.AddAdd();
         resolverInit = true;
     }
 
-    // 3. Create Interpreter
-    // We MUST use dynamic allocation because the tensorArena changes every time.
-    // A static object would keep pointing to the OLD freed memory.
+    // 3. Create interpreter
     g_interpreter = new tflite::MicroInterpreter(
         g_model, resolver, tensorArena, kTensorArenaSize, &g_errorReporter
     );
 
-    // 4. Allocate Tensors
+    // 4. Allocate tensors
     if (g_interpreter->AllocateTensors() != kTfLiteOk) {
-        Serial.println("[INFERENCE] ERROR: AllocateTensors failed");
+        Serial.println("[Inference] Error: AllocateTensors failed");
         free(tensorArena);
         tensorArena = nullptr;
         return false;
     }
 
-    // 5. Setup Input Buffer
+    // 5. Setup input buffer
     g_inputTensor = g_interpreter->input(0);
     g_outputTensor = g_interpreter->output(0);
     
@@ -248,9 +216,7 @@ bool inferenceStart() {
     return true;
 }
 
-// ============================================================================
 // STREAMING API: Process Chunk (calculates FFT -> LogMel for one or more frames)
-// ============================================================================
 bool inferenceProcessChunk(const int16_t* chunk, size_t numSamples) {
     if (!g_inputBufferPos || !tensorArena) return false; // Guard against uninitialized state
 
@@ -263,7 +229,6 @@ bool inferenceProcessChunk(const int16_t* chunk, size_t numSamples) {
         sampleWindow[windowPos++] = chunk[i];
         
         if (windowPos >= INFERENCE_N_FFT) {
-            // ... (Processing logic remains same) ...
             for (int j = 0; j < INFERENCE_N_FFT; j++) {
                 float normalized = (float)(sampleWindow[j]) / 32768.0f;
                 frame[j] = normalized * g_hannWindow[j];
@@ -276,7 +241,6 @@ bool inferenceProcessChunk(const int16_t* chunk, size_t numSamples) {
                 for (int m = 0; m < INFERENCE_N_MELS; m++) {
                     float melEnergy = 0.0f;
                     int start = g_melBinStart[m];
-                    // ...
                     int end = g_melBinEnd[m];
                     int numBins = INFERENCE_N_FFT / 2 + 1;
                     for (int k = start; k <= end && k < numBins; k++) {
@@ -296,19 +260,14 @@ bool inferenceProcessChunk(const int16_t* chunk, size_t numSamples) {
     return true;
 }
 
-// ============================================================================
 // STREAMING API: End (Log -> Normalization -> Invoke)
-// ============================================================================
-// ============================================================================
-// STREAMING API: End (Log -> Normalization -> Invoke)
-// ============================================================================
 SoundClass inferenceEnd(float* confidence) {
     if (!tensorArena) return SoundClass::SILENCE;
     
     float* data = g_inputTensor->data.f;
     int totalElements = INFERENCE_N_MELS * INFERENCE_TIME_STEPS;
     
-    // 1. Post-processing: Log & Normalization
+    // Post-processing: Log & Normalization
     float maxEnergy = 1e-10f;
     for (int i = 0; i < totalElements; i++) {
         if (data[i] > maxEnergy) maxEnergy = data[i];
@@ -332,7 +291,7 @@ SoundClass inferenceEnd(float* confidence) {
         data[i] = (data[i] - mean) / stddev;
     }
     
-    // 2. Invoke Model (Run Inference)
+    // Invoke model (Run inference)
     unsigned long startTime = millis();
     TfLiteStatus invokeStatus = g_interpreter->Invoke();
     unsigned long inferenceTime = millis() - startTime;
@@ -340,7 +299,7 @@ SoundClass inferenceEnd(float* confidence) {
     SoundClass result = SoundClass::SILENCE;
     
     if (invokeStatus == kTfLiteOk) {
-        // 3. Get Result
+        // Get result
         float* outputData = g_outputTensor->data.f;
         int maxIdx = 0;
         float maxVal = outputData[0];
@@ -352,21 +311,20 @@ SoundClass inferenceEnd(float* confidence) {
             }
         }
         
-        Serial.printf("[INFERENCE] Prediction: %s (%.1f%%) in %lums\n",
+        Serial.printf("[Inference] Prediction: %s (%.1f%%) in %lums\n",
                       CLASS_NAMES[maxIdx], maxVal * 100.0f, inferenceTime);
         
         if (confidence) *confidence = maxVal;
         result = static_cast<SoundClass>(maxIdx);
     } else {
-        Serial.println("[INFERENCE] ERROR: Invoke failed");
+        Serial.println("[Inference] Error: Invoke failed");
         if (confidence) *confidence = 0.0f;
     }
 
-    // CLEANUP: Free RAM
-    // This returns the 40KB to the heap for WiFi usage
-    Serial.println("[INFERENCE] Session End (Freeing 40KB RAM)");
+    // Cleanup: Free RAM
+    Serial.println("[Inference] Session end");
     
-    // Destroy interpreter FIRST (it uses the arena)
+    // Destroy interpreter first (it uses the arena)
     if (g_interpreter) {
         delete g_interpreter;
         g_interpreter = nullptr;
@@ -383,38 +341,31 @@ SoundClass inferenceEnd(float* confidence) {
     return result;
 }
 
-// ============================================================================
 // Public API: Initialize TFLite (Lite version - No Allocations)
-// ============================================================================
 bool inferenceInit() {
     if (g_initialized) return true;
     
-    Serial.println("[INFERENCE] Initializing (Lite Mode)...");
+    Serial.println("[Inference] Initializing...");
     
-    // 1. Compute DSP tables
+    // Compute DSP tables
     computeMelFilterBoundaries();
     computeHannWindow();
     
-    // 2. Validate Model (Pointer only)
+    // Validate Model (Pointer only)
     g_model = tflite::GetModel(echosense_model_tflite);
     if (g_model->version() != TFLITE_SCHEMA_VERSION) {
-        Serial.printf("[ERROR] Model schema mismatch!\n");
+        Serial.printf("[Error] Model schema mismatch!\n");
         return false;
     }
     
-    Serial.println("[INFERENCE] Model Validated. RAM will be allocated on demand.");
+    Serial.println("[Inference] Model Validated.");
 
-    // Note: We DO NOT allocate tensorArena here anymore.
-    // It happens in inferenceStart()
-    
     g_initialized = true;
     return true;
 }
 
 
-// ============================================================================
 // Public API: Get class name
-// ============================================================================
 const char* inferenceGetClassName(SoundClass soundClass) {
     int idx = static_cast<int>(soundClass);
     if (idx >= 0 && idx < INFERENCE_NUM_CLASSES) {
@@ -423,9 +374,7 @@ const char* inferenceGetClassName(SoundClass soundClass) {
     return "unknown";
 }
 
-// ============================================================================
 // Public API: Check if ready
-// ============================================================================
 bool inferenceIsReady() {
     return g_initialized;
 }

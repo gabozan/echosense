@@ -116,7 +116,7 @@ void networkReleaseMemory() {
   }
   
   // 2. Deinitialize BLE stack (Bluedroid)
-  BLEDevice::deinit(false); // false = don't release memory yet, we do it manually below
+  BLEDevice::deinit(false);
   
   // 3. Disable controller
   if (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED) {
@@ -127,8 +127,7 @@ void networkReleaseMemory() {
   // 4. Release classic BT memory (if not used)
   esp_bt_mem_release(ESP_BT_MODE_CLASSIC_BT);
   
-  // 5. Release BLE memory (This is the big one ~70KB)
-  // WARNING: Once released, BLE cannot be used until reboot!
+  // 5. Release BLE memory
   esp_err_t err = esp_bt_mem_release(ESP_BT_MODE_BTDM);
   
   if (err == ESP_OK) {

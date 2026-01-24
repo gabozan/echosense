@@ -33,8 +33,6 @@ const char* deviceStatusToString(DeviceStatus s) {
     }
 }
 
-// Generate timestamp compatible with SQL Server datetime2 (UTC)
-// Format: YYYY-MM-DDTHH:MM:SS.fffZ (with milliseconds)
 static String getTimestamp() {
     struct timeval tv;
     gettimeofday(&tv, NULL);

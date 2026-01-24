@@ -5,20 +5,15 @@
 #include "edge.h"
 #include "inference.h"
 
-// Device configuration
-#define DEVICE_ID "es-node-003"
+#define DEVICE_ID "es-node-001"
 
 static bool g_wasConnected = false;
-
-
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
   Serial.println("Booting DEVICE...");
-
-
 
   networkInitBLE();
 
@@ -36,7 +31,7 @@ void setup() {
 }
 
 void loop() {
-  // 1. Check if new WiFi credentials arrived via BLE
+  // Check if new WiFi credentials arrived via BLE
   if (networkHasNewWifiCredentials()) {
     String ssid;
     String password;
@@ -44,13 +39,12 @@ void loop() {
 
     Serial.println("[MAIN] New WiFi credentials received via BLE");
     
-    // CRITICAL: Free BLE memory before starting WiFi to avoid OOM
     networkReleaseMemory();
     delay(500); 
     
     networkConnectWiFi(ssid, password);
   }
-  // 2. Monitor WiFi status
+  // Monitor WiFi status
   bool isConnected = networkIsWiFiConnected();
 
   // Transition: Disconnected -> Connected
@@ -71,18 +65,18 @@ void loop() {
     if (!networkIsBLEActive()) {
       Serial.println("[MAIN] Restarting system to re-enable BLE...");
       delay(1000);
-      ESP.restart(); // Reboot required to re-allocate BLE memory if it was released
+      ESP.restart();
     }
   }
 
   g_wasConnected = isConnected;
 
-// 3. Audio capture + ML classification (every 10 seconds when WiFi connected)
+// Audio capture + ML classification (every 10 seconds when WiFi connected)
   static unsigned long lastCapture = 0;
   if (isConnected && (millis() - lastCapture > 10000)) {
     lastCapture = millis();
     
-    Serial.println("\n[MAIN] === Iniciando Clasificación ===");
+    Serial.println("\n[MAIN] ==================");
     
     if (inferenceIsReady()) {
       Serial.println("[MAIN] Inference Start");
@@ -102,19 +96,19 @@ void loop() {
         size_t remaining = INFERENCE_SAMPLES - totalSamples16;
         size_t toRead = (remaining < 128) ? remaining : 128;
         
-        // 1. Read from I2S
+        // Read from I2S
         size_t samplesRead = audioCapture(tempBuffer32, toRead);
         if (samplesRead == 0) { delay(1); continue; }
 
-        // 2. Convert to 16-bit
+        // Convert to 16-bit
         for (size_t i = 0; i < samplesRead; i++) {
             tempBuffer16[i] = (int16_t)(tempBuffer32[i] >> 16);
         }
         
-        // 3. Process Chunk (FFT -> Mel -> Tensor)
+        // Process Chunk (FFT -> Mel -> Tensor)
         inferenceProcessChunk(tempBuffer16, samplesRead);
         
-        // DEBUG: Print progress every 1024 samples
+        // Print progress every 1024 samples
         if ((totalSamples16 + samplesRead) % 1024 < samplesRead) {
              Serial.printf("[MAIN] Captured %d/%d samples (Time: %lums)\n", totalSamples16 + samplesRead, INFERENCE_SAMPLES, millis() - captureStart);
         }
@@ -126,21 +120,19 @@ void loop() {
       
       Serial.printf("[MAIN] Processed %zu samples\n", totalSamples16);
       
-      // 4. Run Model
+      // Run model
       float confidence = 0.0f;
       SoundClass detectedClass = inferenceEnd(&confidence);
       
       Serial.printf("[MAIN] Class: %s (%.1f%%)\n", 
                     inferenceGetClassName(detectedClass), confidence * 100.0f);
       
-      // 4. ENVIAR DATOS
+      // Send data
       EdgePayload payload;
       payload.deviceId = DEVICE_ID;
       payload.soundClass = detectedClass;
       payload.status = DeviceStatus::ONLINE;
       
-      // Nota: Si quieres enviar LAeq (decibelios), puedes llamar a audioMeasure(1000) aquí
-      // audioMeasure usa su propio buffer interno pequeño, así que no hay conflicto de RAM.
       AudioMetrics metrics = audioMeasure(1000); 
       if(metrics.success) {
           payload.laeq = metrics.LAeq;
@@ -150,10 +142,10 @@ void loop() {
       edgeSendMetrics(payload);
     }
     
-    Serial.println("[MAIN] === Fin Clasificación ===\n");
+    Serial.println("[MAIN] ==================\n");
   }
   
-  // 4. Periodic status log
+  // Periodic status log
   static unsigned long lastLog = 5000; // Start at 5s offset
   if (millis() - lastLog > 10000) {
     lastLog = millis();

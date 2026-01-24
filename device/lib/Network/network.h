@@ -9,7 +9,7 @@
 // BLE functions
 void networkInitBLE();
 void networkStopBLE();
-void networkReleaseMemory(); // Frees BLE memory. Requires reboot to re-enable BLE.
+void networkReleaseMemory();
 bool networkIsBLEActive();
 bool networkHasNewWifiCredentials();
 void networkConsumeWifiCredentials(String &ssid, String &password);

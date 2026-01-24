@@ -29,8 +29,8 @@ bool audioInit() {
     i2s_config_t i2s_config = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
         .sample_rate = AUDIO_SAMPLE_RATE,
-        .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,  // 24-bit data in 32-bit frame
-        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,   // <-- MIC IS ON LEFT CHANNEL
+        .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT, // 24-bit data in 32-bit frame
+        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
         .communication_format = I2S_COMM_FORMAT_STAND_I2S,
         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
         .dma_buf_count = 8,
@@ -87,7 +87,7 @@ void audioStart() {
     // Reset DC offset filter
     g_dcOffset = 0.0f;
     
-    delay(100);  // Let mic stabilize
+    delay(100);
     Serial.println("[Audio] Capture started");
 }
 
@@ -112,7 +112,6 @@ size_t audioCapture(int32_t* buffer, size_t maxSamples) {
     size_t bytesToRead = maxSamples * sizeof(int32_t);
     size_t bytesRead = 0;
     
-    // With ONLY_LEFT, each sample is a single int32_t (no stereo interleaving)
     esp_err_t err = i2s_read(I2S_PORT, buffer, bytesToRead, &bytesRead, portMAX_DELAY);
     
     if (err != ESP_OK) {
@@ -146,7 +145,7 @@ float audioSampleToDb(int32_t rawSample) {
     float normalized = audioSampleToFloat(rawSample);
     
     if (fabsf(normalized) < 1e-9f) {
-        return -120.0f;  // Silence floor
+        return -120.0f;
     }
 
     // dBFS calculation
@@ -154,9 +153,6 @@ float audioSampleToDb(int32_t rawSample) {
     return db;
 }
 
-// ============================================================================
-// Logic Refactor: High-level analysis function
-// ============================================================================
 AudioAnalysis audioAnalyze() {
     AudioAnalysis result = {0};
     result.success = false;
@@ -171,11 +167,10 @@ AudioAnalysis audioAnalyze() {
     // 1. Start I2S
     audioStart();
 
-    // 2. Buffer allocation (Static to avoid stack overflow)
+    // 2. Buffer allocation
     static int32_t buffer[AUDIO_BUFFER_SAMPLES];
 
     // 3. Warm-up (Mic stabilization + DC filter settling)
-    // Read 5 buffers and discard to clear startup transients
     for (int i = 0; i < 5; i++) {
         audioCapture(buffer, AUDIO_BUFFER_SAMPLES);
     }
@@ -186,7 +181,6 @@ AudioAnalysis audioAnalyze() {
     if (samplesRead > 0) {
         Serial.printf("[Audio] Captured %d samples\n", samplesRead);
 
-        // DEBUG: Print first 5 raw samples
         Serial.println("[Audio] DEBUG Raw samples (first 5):");
         for (int i = 0; i < 5 && i < (int)samplesRead; i++) {
             Serial.printf("  [%d] raw=0x%08X (%d)\n", i, (unsigned int)buffer[i], buffer[i]);
@@ -209,9 +203,7 @@ AudioAnalysis audioAnalyze() {
         result.minVal = minVal;
         result.maxVal = maxVal;
         result.rms = sqrtf(rmsSum / samplesRead);
-        result.rmsDb = 20.0f * log10f(result.rms + 1e-10f); // Avoid log(0)
-        
-        // ICS-43434 Calibration: -26dBFS sensitivity @ 94dB SPL -> Offset +120
+        result.rmsDb = 20.0f * log10f(result.rms + 1e-10f);
         result.dbSPL = result.rmsDb + 120.0f; 
         result.success = true;
 
@@ -246,7 +238,6 @@ static const float A_A1 = -1.4142f;
 static const float A_A2 = 0.5314f;
 
 static float applyAWeighting(float sample) {
-    // Direct Form II Transposed biquad
     float output = A_B0 * sample + g_aWeightZ1;
     g_aWeightZ1 = A_B1 * sample - A_A1 * output + g_aWeightZ2;
     g_aWeightZ2 = A_B2 * sample - A_A2 * output;
