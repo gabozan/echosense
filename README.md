@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/logo-banner.png" alt="Logo EchoSense" width="600"/>
+  <img src="assets/logo/logo-banner.png" alt="Logo EchoSense" width="800"/>
 </p>
 
 EchoSense is an end-to-end IoT acoustic monitoring platform designed for smart campus environments. It captures real-time environmental audio data from distributed sensor nodes, classifies sound sources using on-device machine learning, and provides actionable insights through a modern web dashboard.
