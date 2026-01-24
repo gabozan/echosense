@@ -106,6 +106,38 @@ void networkStopBLE() {
   Serial.println("[BLE] Advertising stopped");
 }
 
+void networkReleaseMemory() {
+  Serial.println("[BLE] Releasing Bluetooth memory...");
+  
+  // 1. Stop advertising if active
+  if (g_bleAdvertising) {
+    BLEDevice::stopAdvertising();
+    g_bleAdvertising = false;
+  }
+  
+  // 2. Deinitialize BLE stack (Bluedroid)
+  BLEDevice::deinit(false); // false = don't release memory yet, we do it manually below
+  
+  // 3. Disable controller
+  if (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED) {
+      esp_bt_controller_disable();
+      while (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED);
+  }
+  
+  // 4. Release classic BT memory (if not used)
+  esp_bt_mem_release(ESP_BT_MODE_CLASSIC_BT);
+  
+  // 5. Release BLE memory (This is the big one ~70KB)
+  // WARNING: Once released, BLE cannot be used until reboot!
+  esp_err_t err = esp_bt_mem_release(ESP_BT_MODE_BTDM);
+  
+  if (err == ESP_OK) {
+      Serial.println("[BLE] Memory released successfully!");
+  } else {
+      Serial.printf("[BLE] Failed to release memory (0x%x)\n", err);
+  }
+}
+
 bool networkIsBLEActive() {
   return g_bleAdvertising;
 }

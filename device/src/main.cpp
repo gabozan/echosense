@@ -3,11 +3,14 @@
 #include "network.h"
 #include "audio.h"
 #include "edge.h"
+#include "inference.h"
 
 // Device configuration
 #define DEVICE_ID "es-node-003"
 
 static bool g_wasConnected = false;
+
+
 
 void setup() {
   Serial.begin(115200);
@@ -15,10 +18,16 @@ void setup() {
 
   Serial.println("Booting DEVICE...");
 
+
+
   networkInitBLE();
 
   if (!audioInit()) {
     Serial.println("[MAIN] ERROR: Failed to initialize audio");
+  }
+
+  if (!inferenceInit()) {
+    Serial.println("[MAIN] ERROR: Failed to initialize ML inference");
   }
 
   edgeInit(EDGE_SERVER_URL);
@@ -34,9 +43,14 @@ void loop() {
     networkConsumeWifiCredentials(ssid, password);
 
     Serial.println("[MAIN] New WiFi credentials received via BLE");
+    
+    // CRITICAL: Free BLE memory before starting WiFi to avoid OOM
+    networkReleaseMemory();
+    delay(500); 
+    
     networkConnectWiFi(ssid, password);
   }
-  // 2. Monitor WiFi status and toggle BLE accordingly
+  // 2. Monitor WiFi status
   bool isConnected = networkIsWiFiConnected();
 
   // Transition: Disconnected -> Connected
@@ -53,47 +67,85 @@ void loop() {
   // Transition: Connected -> Disconnected
   if (!isConnected && g_wasConnected) {
     Serial.println("[MAIN] WiFi connection lost");
-    // Turn on BLE again to allow reconfiguration
+    // Turn on BLE again
     if (!networkIsBLEActive()) {
-      Serial.println("[MAIN] Restarting BLE for reconfiguration...");
-      networkInitBLE();
+      Serial.println("[MAIN] Restarting system to re-enable BLE...");
+      delay(1000);
+      ESP.restart(); // Reboot required to re-allocate BLE memory if it was released
     }
   }
 
   g_wasConnected = isConnected;
 
-// 3. Audio capture (only when WiFi is connected, every 10 seconds)
+// 3. Audio capture + ML classification (every 10 seconds when WiFi connected)
   static unsigned long lastCapture = 0;
   if (isConnected && (millis() - lastCapture > 10000)) {
     lastCapture = millis();
     
-    Serial.println("\n[MAIN] === Starting Acoustic Measurement ===");
+    Serial.println("\n[MAIN] === Iniciando Clasificación ===");
     
-    // Measure for 1 second (1000ms) to get LAeq and Peak
-    AudioMetrics metrics = audioMeasure(1000);
-    
-    if (metrics.success) {
-      Serial.printf("[MAIN] Results: LAeq=%.1f dB, LApeak=%.1f dB\n", metrics.LAeq, metrics.LApeak);
+    if (inferenceIsReady()) {
+      Serial.println("[MAIN] Inference Start");
+      inferenceStart(); // Reset tensor state
       
-      // Send to edge server
+      audioStart(); 
+      
+      size_t totalSamples16 = 0;
+      int32_t tempBuffer32[128]; // Small stack buffer
+      int16_t tempBuffer16[128]; // Small stack buffer
+      
+      unsigned long captureStart = millis();
+      
+      // Stream capture loop
+      while (totalSamples16 < INFERENCE_SAMPLES && (millis() - captureStart) < 3000) {
+        
+        size_t remaining = INFERENCE_SAMPLES - totalSamples16;
+        size_t toRead = (remaining < 128) ? remaining : 128;
+        
+        // 1. Read from I2S
+        size_t samplesRead = audioCapture(tempBuffer32, toRead);
+        if (samplesRead == 0) { delay(1); continue; }
+
+        // 2. Convert to 16-bit
+        for (size_t i = 0; i < samplesRead; i++) {
+            tempBuffer16[i] = (int16_t)(tempBuffer32[i] >> 16);
+        }
+        
+        // 3. Process Chunk (FFT -> Mel -> Tensor)
+        inferenceProcessChunk(tempBuffer16, samplesRead);
+        
+        totalSamples16 += samplesRead;
+      }
+      
+      audioStop(); 
+      
+      Serial.printf("[MAIN] Processed %zu samples\n", totalSamples16);
+      
+      // 4. Run Model
+      float confidence = 0.0f;
+      SoundClass detectedClass = inferenceEnd(&confidence);
+      
+      Serial.printf("[MAIN] Class: %s (%.1f%%)\n", 
+                    inferenceGetClassName(detectedClass), confidence * 100.0f);
+      
+      // 4. ENVIAR DATOS
       EdgePayload payload;
       payload.deviceId = DEVICE_ID;
-      payload.laeq = metrics.LAeq;
-      payload.peak = metrics.LApeak;
-      payload.soundClass = SoundClass::SILENCE;  // TODO: Implement classification
+      payload.soundClass = detectedClass;
       payload.status = DeviceStatus::ONLINE;
       
-      int httpCode = edgeSendMetrics(payload);
-      if (httpCode >= 200 && httpCode < 300) {
-        Serial.println("[MAIN] Data sent to edge server");
-      } else {
-        Serial.printf("[MAIN] Failed to send data (HTTP %d)\n", httpCode);
+      // Nota: Si quieres enviar LAeq (decibelios), puedes llamar a audioMeasure(1000) aquí
+      // audioMeasure usa su propio buffer interno pequeño, así que no hay conflicto de RAM.
+      AudioMetrics metrics = audioMeasure(1000); 
+      if(metrics.success) {
+          payload.laeq = metrics.LAeq;
+          payload.peak = metrics.LApeak;
       }
-    } else {
-      Serial.println("[MAIN] Measurement Failed");
-    }
 
-    Serial.println("[MAIN] === Measurement Complete ===\n");
+      edgeSendMetrics(payload);
+    }
+    
+    Serial.println("[MAIN] === Fin Clasificación ===\n");
   }
   
   // 4. Periodic status log
