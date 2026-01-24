@@ -1,0 +1,30 @@
+# --- DEPENDENCIAS ---
+/node_modules
+/.pnp
+.pnp.js
+
+# --- TESTING ---
+/coverage
+
+# --- PRODUCCIÓN (Builds) ---
+/build
+/dist
+
+# --- SISTEMA / MISC ---
+.DS_Store
+.vscode/
+
+# --- VARIABLES DE ENTORNO ---
+.env
+
+# --- LOGS ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- BACKEND ---
+.venv
+venv
+ENV/
+__pycache__/
+*.pyc
