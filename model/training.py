@@ -20,7 +20,7 @@ CONFIG = {
     'esc50_path': '/Users/neilpradasmartinez/Desktop/echosens/ESC-50-master',
     
     # --- PARÁMETROS SINCRONIZADOS CON HARDWARE ---
-    'sr': 16000,         # 16 kHz
+    'sr': 16000, # 16 kHz
     'duration': 2.0,     
     
     # --- Log-Mel Spectrogram  ---
@@ -28,7 +28,7 @@ CONFIG = {
     'n_fft': 1024,       
     'hop_length': 512,  
     'fmin': 0,
-    'fmax': 8000,        #
+    'fmax': 8000,
     
     # --- Training ---
     'batch_size': 32,
@@ -274,20 +274,18 @@ def process_dataset(df, esc50_path, config, is_training=False):
 def create_advanced_model(input_shape, num_classes):
     inputs = tf.keras.layers.Input(shape=input_shape)
     
-    # Bloque 1: Solo 8 filtros
+    # Bloque 1: 8 filtros
     x = tf.keras.layers.Conv2D(8, (3, 3), padding='same', activation='relu')(inputs)
     x = tf.keras.layers.MaxPooling2D((2, 2))(x)
     
-    # Bloque 2: Solo 16 filtros
+    # Bloque 2: 16 filtros
     x = tf.keras.layers.Conv2D(16, (3, 3), padding='same', activation='relu')(x)
     x = tf.keras.layers.MaxPooling2D((2, 2))(x)
     
-    # Bloque 3: Solo 32 filtros
-    x = tf.keras.layers.Conv2D(32, (3, 3), padding='same', activation='relu')(x)
-    # x = tf.keras.layers.MaxPooling2D((2, 2))(x) # Quitamos el ultimo pooling para no perder info
-    
+    # Bloque 3: 32 filtros
+    x = tf.keras.layers.Conv2D(32, (3, 3), padding='same', activation='relu')(x)    
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
-    x = tf.keras.layers.Dropout(0.2)(x) # Añadimos dropout
+    x = tf.keras.layers.Dropout(0.2)(x)
     
     outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
     
