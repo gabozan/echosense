@@ -97,7 +97,7 @@ void loop() {
       unsigned long captureStart = millis();
       
       // Stream capture loop
-      while (totalSamples16 < INFERENCE_SAMPLES && (millis() - captureStart) < 3000) {
+      while (totalSamples16 < INFERENCE_SAMPLES && (millis() - captureStart) < 6000) {
         
         size_t remaining = INFERENCE_SAMPLES - totalSamples16;
         size_t toRead = (remaining < 128) ? remaining : 128;
@@ -113,6 +113,11 @@ void loop() {
         
         // 3. Process Chunk (FFT -> Mel -> Tensor)
         inferenceProcessChunk(tempBuffer16, samplesRead);
+        
+        // DEBUG: Print progress every 1024 samples
+        if ((totalSamples16 + samplesRead) % 1024 < samplesRead) {
+             Serial.printf("[MAIN] Captured %d/%d samples (Time: %lums)\n", totalSamples16 + samplesRead, INFERENCE_SAMPLES, millis() - captureStart);
+        }
         
         totalSamples16 += samplesRead;
       }

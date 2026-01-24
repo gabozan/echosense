@@ -116,21 +116,68 @@ static void computeHannWindow() {
 // ============================================================================
 // Simple DFT - Computes magnitude spectrum for one frame
 // ============================================================================
+// ============================================================================
+// Optimized FFT (Cooley-Tukey Radix-2)
+// ============================================================================
 static void computeMagnitudeSpectrum(const float* frame, float* magnitudes) {
-    int numBins = INFERENCE_N_FFT / 2 + 1;
+    // 1. Copy frame to complex buffer (real, imag interleaved)
+    // We reuse memory to avoid stack overflow risks on ESP32
+    static float real[INFERENCE_N_FFT];
+    static float imag[INFERENCE_N_FFT];
     
-    for (int k = 0; k < numBins; k++) {
-        float real = 0.0f;
-        float imag = 0.0f;
-        
-        for (int n = 0; n < INFERENCE_N_FFT; n++) {
-            float angle = -2.0f * PI * k * n / INFERENCE_N_FFT;
-            real += frame[n] * cosf(angle);
-            imag += frame[n] * sinf(angle);
+    for (int i = 0; i < INFERENCE_N_FFT; i++) {
+        real[i] = frame[i];
+        imag[i] = 0.0f;
+    }
+
+    // 2. Bit Reversal Permutation
+    int j = 0;
+    for (int i = 0; i < INFERENCE_N_FFT - 1; i++) {
+        if (i < j) {
+            float tr = real[j]; real[j] = real[i]; real[i] = tr;
+            float ti = imag[j]; imag[j] = imag[i]; imag[i] = ti;
         }
+        int k = INFERENCE_N_FFT / 2;
+        while (k <= j) {
+            j -= k;
+            k /= 2;
+        }
+        j += k;
+    }
+
+    // 3. FFT Butterfly Operations
+    for (int len = 2; len <= INFERENCE_N_FFT; len <<= 1) {
+        float ang = -2.0 * PI / len;
+        float wlen_r = cos(ang);
+        float wlen_i = sin(ang);
         
-        // Power spectrum
-        magnitudes[k] = real * real + imag * imag;
+        for (int i = 0; i < INFERENCE_N_FFT; i += len) {
+            float w_r = 1.0f;
+            float w_i = 0.0f;
+            for (int j = 0; j < len / 2; j++) {
+                int u = i + j;
+                int v = i + j + len / 2;
+                
+                float tr = w_r * real[v] - w_i * imag[v];
+                float ti = w_r * imag[v] + w_i * real[v];
+                
+                real[v] = real[u] - tr;
+                imag[v] = imag[u] - ti;
+                real[u] += tr;
+                imag[u] += ti;
+                
+                float wtypes_r = w_r * wlen_r - w_i * wlen_i;
+                w_i = w_r * wlen_i + w_i * wlen_r;
+                w_r = wtypes_r;
+            }
+        }
+    }
+
+    // 4. Compute Squared Magnitudes (Power Spectrum)
+    // Only need first N/2 + 1 bins (Nyquist)
+    int numBins = INFERENCE_N_FFT / 2 + 1;
+    for (int k = 0; k < numBins; k++) {
+        magnitudes[k] = real[k] * real[k] + imag[k] * imag[k];
     }
 }
 
