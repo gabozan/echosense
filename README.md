@@ -53,7 +53,7 @@ EchoSense addresses the challenge of environmental noise monitoring in large cam
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              EchoSense Architecture                              │
+│                              EchoSense Architecture                             │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────┐     BLE      ┌─────────────┐
@@ -431,11 +431,9 @@ A modern, responsive web dashboard providing real-time visualization and analyti
 | `Header` | Branding and system status indicator |
 | `MetricCard` | Summary statistics display |
 | `CampusMap` | Leaflet map with CircleMarkers |
-| `TimelineChart` | Recharts AreaChart with time range controls |
 | `DistributionChart` | Sound class bar chart |
 | `Recommendations` | AI-generated insights |
 | `DeviceHealthMonitor` | Node status grid |
-| `PublicInsights` | Student-facing daily patterns |
 
 #### Color Coding
 
