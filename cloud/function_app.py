@@ -80,26 +80,6 @@ def nodeRegistration(req: func.HttpRequest, salidaDb: func.Out[func.SqlRow]) -> 
         logging.error(e)
         return func.HttpResponse(f"Error: {str(e)}", status_code=500)
 
-# -------------------------------------------------
-#LEER DATOS de la BD [TODOS LOS DE LA TABLA DE PAYLOADS] raw (GET)
-@app.route(route="obtainRawData", auth_level=func.AuthLevel.ANONYMOUS)
-@app.sql_input(arg_name="datos",                               #aqui se almacenan todas las filas obtenidas de la base de datos (func.SqlRowList)
-               command_text="SELECT * FROM [dbo].[device_payloads]",
-               command_type="Text",
-               connection_string_setting="SqlConnectionString")
-def obtainRawData(req: func.HttpRequest, datos: func.SqlRowList) -> func.HttpResponse:
-    logging.info('Leyendo BD...')
-
-    # Convertimos la respuesta de SQL (que viene en objetos raros) a JSON normal
-    resultados = [json.loads(row.to_json()) for row in datos]  #a aprtir de los datos en formato raro que nos devuelve la BD creamos un dict de python
-
-    return func.HttpResponse(
-        json.dumps(resultados),
-        status_code=200,
-        mimetype="application/json"
-    )
-
-
 
 # -------------------------------------------------
 #LEER DATOS de la BD (GET)
